@@ -3,7 +3,7 @@ import type { Categoria } from "../tipos/categoria";
 export const categoriasMock: Categoria[] = [
   {
     id: "cat-museos",
-    nombre: "Museos",
+    nombre: "Museos y patrimonio",
     icono: "business-outline",
     color: "#8E5A4A",
     orden: 3,

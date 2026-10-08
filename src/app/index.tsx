@@ -107,14 +107,20 @@ export default function Inicio() {
           data={lugaresFiltrados}
           keyExtractor={(item) => item.id}
           ListEmptyComponent={<Text>No se encontraron lugares.</Text>}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const categoria = categorias.find(
               (categoria) => categoria.id === item.categoriaId,
             );
 
             return (
               <Pressable
-                style={estilos.tarjeta}
+                style={[
+                  estilos.tarjeta,
+                  {
+                    backgroundColor: index % 2 === 0 ? "#DBEAFE" : "#FFF0D6",
+                    borderColor: index % 2 === 0 ? "#93C5FD" : "#F4C77B",
+                  },
+                ]}
                 onPress={() =>
                   router.push({
                     pathname: "/lugar/[id]",
@@ -128,7 +134,7 @@ export default function Inicio() {
                     { color: categoria?.color ?? "#111111" },
                   ]}
                 >
-                  {item.nombre}
+                  {index + 1}. {item.nombre}
                 </Text>
 
                 <Text>{item.descripcionCorta}</Text>
@@ -160,10 +166,8 @@ const estilos = StyleSheet.create({
   tarjeta: {
     padding: 16,
     borderWidth: 1,
-    borderColor: "#0063e6",
     borderRadius: 8,
     marginBottom: 12,
-    backgroundColor: "#FFFFFF",
   },
   nombre: {
     fontSize: 18,

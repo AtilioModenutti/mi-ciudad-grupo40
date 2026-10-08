@@ -47,16 +47,16 @@ export const lugaresMock: Lugar[] = [
   },
   {
     id: "lug-003",
-    nombre: "Museo de la ciudad",
-    categoriaId: "cat-museos",
-    descripcionCorta: "Museo que exhibe la historia de Colón.",
+    nombre: "Playa del Lago",
+    categoriaId: "cat-playas",
+    descripcionCorta: "Playa con servicios turísticos.",
     descripcion:
-      "Un museo que muestra la historia y cultura de la ciudad de Colón.",
+      "Una playa ideal para relajarse y disfrutar del entorno natural.",
     coordenadas: {
       latitud: -32.2504,
       longitud: -58.2532,
     },
-    direccion: "Calle Principal 123, Colón, Entre Ríos",
+    direccion: "Costa Colón, Entre Ríos",
     imagenes: [],
     horarios: [],
     telefono: null,

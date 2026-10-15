@@ -12,7 +12,11 @@ export const lugaresMock: Lugar[] = [
       longitud: -58.1932,
     },
     direccion: "Colonia San José, Ruta Provincial 26",
-    imagenes: ["https://picsum.photos/id/1018/900/500"],
+    imagenes: [
+      "https://picsum.photos/id/1018/900/500",
+      "https://picsum.photos/id/1015/900/500",
+      "https://picsum.photos/id/1016/900/500",
+    ],
     horarios: [
       { dia: 1, abre: "09:00", cierra: "17:00" },
       { dia: 2, abre: "09:00", cierra: "17:00" },
@@ -44,7 +48,7 @@ export const lugaresMock: Lugar[] = [
     sitioWeb: null,
     precioEntrada: null,
     audioguia: null,
-    codigoQr: null,
+    codigoQr: "COLON:lug-002",
     accesible: true,
     activo: true,
     actualizadoEn: "2026-10-01T10:00:00-03:00",

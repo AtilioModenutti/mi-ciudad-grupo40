@@ -9,6 +9,8 @@ export default function RootLayout() {
         name="lugar/[id]"
         options={{ title: "Detalle del lugar" }}
       />
+
+      <Stack.Screen name="escanear" options={{ title: "Escanear QR" }} />
     </Stack>
   );
 }

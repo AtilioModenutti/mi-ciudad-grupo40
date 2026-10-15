@@ -56,6 +56,13 @@ export default function Inicio() {
       <Text style={estilos.titulo}>Mi Ciudad</Text>
       <Text style={estilos.subtitulo}>Descubrí Colón, Entre Ríos</Text>
 
+      <Pressable
+        style={estilos.botonEscanear}
+        onPress={() => router.push("/escanear")}
+      >
+        <Text style={estilos.textoEscanear}>Escanear QR</Text>
+      </Pressable>
+
       <TextInput
         style={estilos.buscador}
         placeholder="Buscar lugares"
@@ -197,5 +204,16 @@ const estilos = StyleSheet.create({
   },
   textoFiltroActivo: {
     color: "#FFFFFF",
+  },
+  botonEscanear: {
+    backgroundColor: "#2563EB",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  textoEscanear: {
+    color: "#FFFFFF",
+    fontWeight: "bold",
   },
 });

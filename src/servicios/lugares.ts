@@ -16,3 +16,11 @@ export async function obtenerLugarPorId(id: string) {
 
   return lugar ?? null;
 }
+
+export async function obtenerLugarPorCodigoQr(codigo: string) {
+  const lugar = lugaresMock.find(
+    (lugar) => lugar.codigoQr === codigo && lugar.activo,
+  );
+
+  return lugar ?? null;
+}

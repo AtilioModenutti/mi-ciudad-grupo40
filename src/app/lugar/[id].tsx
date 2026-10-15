@@ -3,12 +3,15 @@ import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 
+import { obtenerCategorias } from "@/servicios/categorias";
+import { Categoria } from "@/tipos/categoria";
 import { obtenerLugarPorId } from "../../servicios/lugares";
 import type { Lugar } from "../../tipos/lugar";
 
@@ -17,12 +20,23 @@ export default function DetalleLugar() {
 
   const [lugar, setLugar] = useState<Lugar | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [indiceImagen, setIndiceImagen] = useState(0);
 
   useEffect(() => {
     obtenerLugarPorId(id)
-      .then((resultado) => setLugar(resultado))
+      .then((resultado) => {
+        setLugar(resultado);
+        setIndiceImagen(0);
+      })
       .finally(() => setCargando(false));
   }, [id]);
+
+  useEffect(() => {
+    obtenerCategorias()
+      .then((respuesta) => setCategorias(respuesta.datos))
+      .catch(() => setCategorias([]));
+  }, []);
 
   if (cargando) {
     return <ActivityIndicator />;
@@ -31,6 +45,10 @@ export default function DetalleLugar() {
   if (!lugar) {
     return <Text>Lugar no encontrado.</Text>;
   }
+
+  const categoria = categorias.find(
+    (categoria) => categoria.id === lugar.categoriaId,
+  );
 
   const diasSemana = [
     "Domingo",
@@ -48,19 +66,59 @@ export default function DetalleLugar() {
       contentContainerStyle={estilos.contenido}
     >
       {lugar.imagenes.length > 0 ? (
-        <Image
-          source={{ uri: lugar.imagenes[0] }}
-          style={estilos.imagen}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-        />
+        <View style={estilos.galeria}>
+          <Image
+            source={{ uri: lugar.imagenes[indiceImagen] }}
+            style={estilos.imagen}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+
+          {lugar.imagenes.length > 1 && (
+            <View style={estilos.controlesGaleria}>
+              <Pressable
+                disabled={indiceImagen === 0}
+                onPress={() => setIndiceImagen(indiceImagen - 1)}
+                style={[
+                  estilos.botonGaleria,
+                  indiceImagen === 0 && estilos.botonDeshabilitado,
+                ]}
+              >
+                <Text>Anterior</Text>
+              </Pressable>
+
+              <Text>
+                {indiceImagen + 1} / {lugar.imagenes.length}
+              </Text>
+
+              <Pressable
+                disabled={indiceImagen === lugar.imagenes.length - 1}
+                onPress={() => setIndiceImagen(indiceImagen + 1)}
+                style={[
+                  estilos.botonGaleria,
+                  indiceImagen === lugar.imagenes.length - 1 &&
+                    estilos.botonDeshabilitado,
+                ]}
+              >
+                <Text>Siguiente</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
       ) : (
         <View style={estilos.sinImagen}>
-          <Text>No hay fotografias disponibles.</Text>
+          <Text>No hay fotografías disponibles.</Text>
         </View>
       )}
 
       <Text style={estilos.titulo}>{lugar.nombre}</Text>
+
+      <Text
+        style={[estilos.categoria, { color: categoria?.color ?? "#666666" }]}
+      >
+        {categoria?.nombre ?? "Categoria no disponible"}
+      </Text>
+
       <Text style={estilos.descripcion}>{lugar.descripcion}</Text>
       <Text style={estilos.direccion}>{lugar.direccion}</Text>
 
@@ -156,5 +214,26 @@ const estilos = StyleSheet.create({
     fontSize: 15,
     color: "#444444",
     marginBottom: 8,
+  },
+  categoria: {
+    fontSize: 14,
+    fontWeight: "bold",
+    marginBottom: 12,
+  },
+  galeria: {
+    marginBottom: 20,
+  },
+  controlesGaleria: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  botonGaleria: {
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: "#E5E7EB",
+  },
+  botonDeshabilitado: {
+    opacity: 0.35,
   },
 });

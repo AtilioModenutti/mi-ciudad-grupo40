@@ -2,15 +2,18 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { guardarFavoritos, obtenerFavoritos } from "@/servicios/favoritos";
 import { obtenerCategorias } from "../servicios/categorias";
 import { obtenerLugares } from "../servicios/lugares";
 import type { Categoria } from "../tipos/categoria";
@@ -25,6 +28,9 @@ export default function Inicio() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [busqueda, setBusqueda] = useState("");
+  const [favoritos, setFavoritos] = useState<string[]>([]);
+  const [soloFavoritos, setSoloFavoritos] = useState(false);
+  const [favoritosListos, setFavoritosListos] = useState(false);
 
   useEffect(() => {
     obtenerLugares()
@@ -39,6 +45,46 @@ export default function Inicio() {
       .catch(() => setError("No se pudieron cargar las categorías."));
   }, []);
 
+  useEffect(() => {
+    let activo = true;
+
+    obtenerFavoritos()
+      .then((guardados) => {
+        if (activo) {
+          setFavoritos(guardados);
+          setFavoritosListos(true);
+        }
+      })
+      .catch(() => {
+        if (activo) {
+          setError("No se pudieron recuperar los favoritos.");
+        }
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!favoritosListos) {
+      return;
+    }
+
+    guardarFavoritos(favoritos).catch(() => {
+      Alert.alert("Error", "No se pudieron guardar los favoritos.");
+    });
+  }, [favoritos, favoritosListos]);
+
+  function cambiarFavorito(id: string) {
+    setFavoritos((actuales) => {
+      if (actuales.includes(id)) {
+        return actuales.filter((favoritoId) => favoritoId !== id);
+      }
+      return [...actuales, id];
+    });
+  }
+
   const lugaresFiltrados = lugares.filter((lugar) => {
     const coincideNombre = lugar.nombre
       .toLowerCase()
@@ -48,7 +94,9 @@ export default function Inicio() {
       categoriaSeleccionada === null ||
       lugar.categoriaId === categoriaSeleccionada;
 
-    return coincideNombre && coincideCategoria;
+    const coincideFavorito = !soloFavoritos || favoritos.includes(lugar.id);
+
+    return coincideNombre && coincideCategoria && coincideFavorito;
   });
 
   return (
@@ -105,47 +153,84 @@ export default function Inicio() {
         ))}
       </ScrollView>
 
-      {cargando ? (
-        <ActivityIndicator />
-      ) : error ? (
+      <Pressable
+        style={[
+          estilos.botonFavoritos,
+          soloFavoritos && estilos.botonFavoritosActivo,
+        ]}
+        onPress={() => setSoloFavoritos(!soloFavoritos)}
+      >
+        <Text
+          style={[
+            estilos.textoFavoritos,
+            soloFavoritos && estilos.textoFavoritosActivo,
+          ]}
+        >
+          {soloFavoritos
+            ? "♥ Mostrando favoritos"
+            : `♡ Ver solo favoritos (${favoritos.length})`}
+        </Text>
+      </Pressable>
+
+      {error ? (
         <Text>{error}</Text>
+      ) : cargando || !favoritosListos ? (
+        <ActivityIndicator />
       ) : (
         <FlatList
           data={lugaresFiltrados}
           keyExtractor={(item) => item.id}
           ListEmptyComponent={<Text>No se encontraron lugares.</Text>}
-          renderItem={({ item, index }) => {
+          renderItem={({ item }) => {
             const categoria = categorias.find(
               (categoria) => categoria.id === item.categoriaId,
             );
 
-            return (
-              <Pressable
-                style={[
-                  estilos.tarjeta,
-                  {
-                    backgroundColor: index % 2 === 0 ? "#DBEAFE" : "#FFF0D6",
-                    borderColor: index % 2 === 0 ? "#93C5FD" : "#F4C77B",
-                  },
-                ]}
-                onPress={() =>
-                  router.push({
-                    pathname: "/lugar/[id]",
-                    params: { id: item.id },
-                  })
-                }
-              >
-                <Text
-                  style={[
-                    estilos.nombre,
-                    { color: categoria?.color ?? "#111111" },
-                  ]}
-                >
-                  {index + 1}. {item.nombre}
-                </Text>
+            const esFavorito = favoritos.includes(item.id);
 
-                <Text>{item.descripcionCorta}</Text>
-              </Pressable>
+            return (
+              <View style={estilos.tarjeta}>
+                <Pressable
+                  style={estilos.contenidoTarjeta}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/lugar/[id]",
+                      params: { id: item.id },
+                    })
+                  }
+                >
+                  <Text
+                    style={[
+                      estilos.nombre,
+                      { color: categoria?.color ?? "#111111" },
+                    ]}
+                  >
+                    {item.nombre}
+                  </Text>
+
+                  <Text style={estilos.descripcionTarjeta}>
+                    {item.descripcionCorta}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={estilos.botonCorazon}
+                  onPress={() => cambiarFavorito(item.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    esFavorito ? "Quitar de favoritos" : "Agregar a favoritos"
+                  }
+                >
+                  <Text
+                    style={[
+                      estilos.corazon,
+                      esFavorito && estilos.corazonActivo,
+                    ]}
+                  >
+                    {esFavorito ? "♥" : "♡"}
+                  </Text>
+                </Pressable>
+              </View>
             );
           }}
         />
@@ -171,10 +256,15 @@ const estilos = StyleSheet.create({
     marginBottom: 20,
   },
   tarjeta: {
-    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderRadius: 8,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    padding: 14,
     marginBottom: 12,
+    elevation: 2,
   },
   nombre: {
     fontSize: 18,
@@ -215,5 +305,50 @@ const estilos = StyleSheet.create({
   textoEscanear: {
     color: "#FFFFFF",
     fontWeight: "bold",
+  },
+  botonFavoritos: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#CCCCCC",
+    borderRadius: 8,
+    marginBottom: 15,
+    alignItems: "center",
+  },
+  botonFavoritosActivo: {
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
+  },
+  textoFavoritos: {
+    fontWeight: "bold",
+    color: "#333333",
+  },
+  textoFavoritosActivo: {
+    color: "#FFFFFF",
+  },
+  contenidoTarjeta: {
+    flex: 1,
+    minWidth: 0,
+  },
+  descripcionTarjeta: {
+    fontSize: 14,
+    color: "#475569",
+    lineHeight: 20,
+  },
+  botonCorazon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 10,
+  },
+
+  corazon: {
+    fontSize: 22,
+    color: "#94A3B8",
+  },
+
+  corazonActivo: {
+    color: "#E11D48",
   },
 });

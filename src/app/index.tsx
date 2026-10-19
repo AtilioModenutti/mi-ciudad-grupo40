@@ -105,6 +105,13 @@ export default function Inicio() {
       <Text style={estilos.subtitulo}>Descubrí Colón, Entre Ríos</Text>
 
       <Pressable
+        style={estilos.botonIngresar}
+        onPress={() => router.push("/ingresar")}
+      >
+        <Text style={estilos.textoIngresar}>Mi cuenta / Ingresar</Text>
+      </Pressable>
+
+      <Pressable
         style={estilos.botonEscanear}
         onPress={() => router.push("/escanear")}
       >
@@ -342,13 +349,20 @@ const estilos = StyleSheet.create({
     alignItems: "center",
     marginLeft: 10,
   },
-
   corazon: {
     fontSize: 22,
     color: "#94A3B8",
   },
-
   corazonActivo: {
     color: "#E11D48",
+  },
+  botonIngresar: {
+    padding: 12,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  textoIngresar: {
+    color: "#2563EB",
+    fontWeight: "bold",
   },
 });

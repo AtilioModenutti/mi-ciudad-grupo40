@@ -1,18 +1,36 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
+import { LogBox } from "react-native";
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+// Silenciamos advertencias de red para tener la pantalla limpia
+LogBox.ignoreLogs(["Cannot connect to Expo CLI"]);
 
-SplashScreen.preventAutoHideAsync();
+export default function RootLayout() {
+  useEffect(() => {
+    // Oculta el splash screen cuando la app está lista
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: "#0B3A5D" }, // Azul institucional de Colón
+        headerTintColor: "#FFFFFF",
+        headerTitleStyle: { fontWeight: "700" },
+      }}
+    >
+      {/* La pantalla principal (Home) no lleva header superior */}
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+
+      {/* La pantalla de Agenda con su título oficial */}
+      <Stack.Screen
+        name="agenda"
+        options={{
+          title: "Agenda de Colón",
+          headerBackTitle: "Inicio",
+        }}
+      />
+    </Stack>
   );
 }

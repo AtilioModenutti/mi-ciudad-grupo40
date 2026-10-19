@@ -1,98 +1,136 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from "expo-router";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+import { AnimatedIcon } from "@/components/animated-icon";
 
 export default function HomeScreen() {
+  const irAAgenda = () => {
+    router.push("/agenda");
+  };
+
   return (
-    <ThemedView style={styles.container}>
+    <View style={styles.pantalla}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
+        {/* Cabecera con Logo y Título */}
+        <View style={styles.cabecera}>
           <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+          <Text style={styles.titulo}>Mi Ciudad Colón</Text>
+          <Text style={styles.subtitulo}>Guía Turística y Cultural</Text>
+        </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+        {/* Botón Principal a la Agenda */}
+        <View style={styles.contenedorBoton}>
+          <Pressable
+            accessible={true}
+            role="button"
+            accessibilityLabel="Abrir Agenda de Eventos de Colón"
+            onPress={irAAgenda}
+            style={({ pressed }) => [
+              styles.tarjetaBoton,
+              pressed && styles.tarjetaPresionada,
+            ]}
+          >
+            <View style={styles.iconoContenedor}>
+              <Text style={styles.iconoEmoji}>📅</Text>
+            </View>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+            <View style={styles.textosBoton}>
+              <Text style={styles.textoBotonTitulo}>Agenda de Eventos</Text>
+              <Text style={styles.textoBotonDesc}>
+                Visitas nocturnas, peñas y actividades
+              </Text>
+            </View>
 
-        {Platform.OS === 'web' && <WebBadge />}
+            <Text style={styles.flecha}>➔</Text>
+          </Pressable>
+        </View>
       </SafeAreaView>
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  pantalla: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+    backgroundColor: "#0F172A", // Fondo oscuro moderno para buen contraste
   },
   safeArea: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    paddingHorizontal: 20,
+    justifyContent: "space-between",
+    paddingBottom: 60,
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  cabecera: {
+    alignItems: "center",
+    marginTop: 30,
+    gap: 8,
+  },
+  titulo: {
+    fontSize: 30,
+    fontWeight: "800",
+    color: "#38BDF8", // Celeste brillante visible al sol y en modo oscuro
+    textAlign: "center",
+    marginTop: 12,
+  },
+  subtitulo: {
+    fontSize: 16,
+    color: "#94A3B8",
+    textAlign: "center",
+  },
+  contenedorBoton: {
+    width: "100%",
+    paddingBottom: 20,
+  },
+  tarjetaBoton: {
+    backgroundColor: "#1E293B",
+    borderWidth: 1.5,
+    borderColor: "#38BDF8",
+    borderRadius: 20,
+    padding: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "stretch",
+    elevation: 6,
+    shadowColor: "#38BDF8",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  tarjetaPresionada: {
+    opacity: 0.8,
+    backgroundColor: "#273549",
+    transform: [{ scale: 0.98 }],
+  },
+  iconoContenedor: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#0369A1",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
+  iconoEmoji: {
+    fontSize: 24,
+  },
+  textosBoton: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
   },
-  title: {
-    textAlign: 'center',
+  textoBotonTitulo: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
-  code: {
-    textTransform: 'uppercase',
+  textoBotonDesc: {
+    fontSize: 13,
+    color: "#94A3B8",
+    marginTop: 2,
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  flecha: {
+    fontSize: 20,
+    color: "#38BDF8",
+    fontWeight: "bold",
+    marginLeft: 8,
   },
 });

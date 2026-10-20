@@ -1,98 +1,368 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { guardarFavoritos, obtenerFavoritos } from "@/servicios/favoritos";
+import { obtenerCategorias } from "../servicios/categorias";
+import { obtenerLugares } from "../servicios/lugares";
+import type { Categoria } from "../tipos/categoria";
+import { Lugar } from "../tipos/lugar";
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
+export default function Inicio() {
+  const [lugares, setLugares] = useState<Lugar[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<
+    string | null
+  >(null);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+  const [busqueda, setBusqueda] = useState("");
+  const [favoritos, setFavoritos] = useState<string[]>([]);
+  const [soloFavoritos, setSoloFavoritos] = useState(false);
+  const [favoritosListos, setFavoritosListos] = useState(false);
+
+  useEffect(() => {
+    obtenerLugares()
+      .then((respuesta) => setLugares(respuesta.datos))
+      .catch(() => setError("No se pudieron cargar los lugares."))
+      .finally(() => setCargando(false));
+  }, []);
+
+  useEffect(() => {
+    obtenerCategorias()
+      .then((respuesta) => setCategorias(respuesta.datos))
+      .catch(() => setError("No se pudieron cargar las categorías."));
+  }, []);
+
+  useEffect(() => {
+    let activo = true;
+
+    obtenerFavoritos()
+      .then((guardados) => {
+        if (activo) {
+          setFavoritos(guardados);
+          setFavoritosListos(true);
+        }
+      })
+      .catch(() => {
+        if (activo) {
+          setError("No se pudieron recuperar los favoritos.");
+        }
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!favoritosListos) {
+      return;
+    }
+
+    guardarFavoritos(favoritos).catch(() => {
+      Alert.alert("Error", "No se pudieron guardar los favoritos.");
+    });
+  }, [favoritos, favoritosListos]);
+
+  function cambiarFavorito(id: string) {
+    setFavoritos((actuales) => {
+      if (actuales.includes(id)) {
+        return actuales.filter((favoritoId) => favoritoId !== id);
+      }
+      return [...actuales, id];
+    });
   }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+
+  const lugaresFiltrados = lugares.filter((lugar) => {
+    const coincideNombre = lugar.nombre
+      .toLowerCase()
+      .includes(busqueda.toLowerCase());
+
+    const coincideCategoria =
+      categoriaSeleccionada === null ||
+      lugar.categoriaId === categoriaSeleccionada;
+
+    const coincideFavorito = !soloFavoritos || favoritos.includes(lugar.id);
+
+    return coincideNombre && coincideCategoria && coincideFavorito;
+  });
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
+    <SafeAreaView style={estilos.pantalla} edges={["top"]}>
+      <Text style={estilos.titulo}>Mi Ciudad</Text>
+      <Text style={estilos.subtitulo}>Descubrí Colón, Entre Ríos</Text>
+
+      <Pressable
+        style={estilos.botonIngresar}
+        onPress={() => router.push("/ingresar")}
+      >
+        <Text style={estilos.textoIngresar}>Mi cuenta / Ingresar</Text>
+      </Pressable>
+
+      <Pressable
+        style={estilos.botonEscanear}
+        onPress={() => router.push("/escanear")}
+      >
+        <Text style={estilos.textoEscanear}>Escanear QR</Text>
+      </Pressable>
+
+      <TextInput
+        style={estilos.buscador}
+        placeholder="Buscar lugares"
+        value={busqueda}
+        onChangeText={setBusqueda}
+      ></TextInput>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0, marginBottom: 15 }}
+      >
+        <Pressable
+          style={[
+            estilos.filtro,
+            categoriaSeleccionada === null && estilos.filtroActivo,
+          ]}
+          onPress={() => setCategoriaSeleccionada(null)}
+        >
+          <Text
+            style={[
+              categoriaSeleccionada === null && estilos.textoFiltroActivo,
+            ]}
+          >
+            Todos
+          </Text>
+        </Pressable>
+
+        {categorias.map((categoria) => (
+          <Pressable
+            key={categoria.id}
+            style={[
+              estilos.filtro,
+              categoriaSeleccionada === categoria.id && estilos.filtroActivo,
+            ]}
+            onPress={() => setCategoriaSeleccionada(categoria.id)}
+          >
+            <Text>{categoria.nombre}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      <Pressable
+        style={[
+          estilos.botonFavoritos,
+          soloFavoritos && estilos.botonFavoritosActivo,
+        ]}
+        onPress={() => setSoloFavoritos(!soloFavoritos)}
+      >
+        <Text
+          style={[
+            estilos.textoFavoritos,
+            soloFavoritos && estilos.textoFavoritosActivo,
+          ]}
+        >
+          {soloFavoritos
+            ? "♥ Mostrando favoritos"
+            : `♡ Ver solo favoritos (${favoritos.length})`}
+        </Text>
+      </Pressable>
+
+      {error ? (
+        <Text>{error}</Text>
+      ) : cargando || !favoritosListos ? (
+        <ActivityIndicator />
+      ) : (
+        <FlatList
+          data={lugaresFiltrados}
+          keyExtractor={(item) => item.id}
+          ListEmptyComponent={<Text>No se encontraron lugares.</Text>}
+          renderItem={({ item }) => {
+            const categoria = categorias.find(
+              (categoria) => categoria.id === item.categoriaId,
+            );
+
+            const esFavorito = favoritos.includes(item.id);
+
+            return (
+              <View style={estilos.tarjeta}>
+                <Pressable
+                  style={estilos.contenidoTarjeta}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/lugar/[id]",
+                      params: { id: item.id },
+                    })
+                  }
+                >
+                  <Text
+                    style={[
+                      estilos.nombre,
+                      { color: categoria?.color ?? "#111111" },
+                    ]}
+                  >
+                    {item.nombre}
+                  </Text>
+
+                  <Text style={estilos.descripcionTarjeta}>
+                    {item.descripcionCorta}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={estilos.botonCorazon}
+                  onPress={() => cambiarFavorito(item.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    esFavorito ? "Quitar de favoritos" : "Agregar a favoritos"
+                  }
+                >
+                  <Text
+                    style={[
+                      estilos.corazon,
+                      esFavorito && estilos.corazonActivo,
+                    ]}
+                  >
+                    {esFavorito ? "♥" : "♡"}
+                  </Text>
+                </Pressable>
+              </View>
+            );
+          }}
+        />
+      )}
+    </SafeAreaView>
   );
 }
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
+const estilos = StyleSheet.create({
+  pantalla: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+    padding: 20,
+    backgroundColor: "#FFFFFF",
   },
-  safeArea: {
+  titulo: {
+    fontSize: 30,
+    fontWeight: "bold",
+    color: "#111111",
+  },
+  subtitulo: {
+    fontSize: 16,
+    color: "#555555",
+    marginBottom: 20,
+  },
+  tarjeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    elevation: 2,
+  },
+  nombre: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 5,
+    color: "#15803D",
+  },
+  buscador: {
+    borderWidth: 1,
+    borderColor: "#CCCCCC",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 20,
+    color: "#111111",
+  },
+  filtro: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#CCCCCC",
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  filtroActivo: {
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
+  },
+  textoFiltroActivo: {
+    color: "#FFFFFF",
+  },
+  botonEscanear: {
+    backgroundColor: "#2563EB",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  textoEscanear: {
+    color: "#FFFFFF",
+    fontWeight: "bold",
+  },
+  botonFavoritos: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#CCCCCC",
+    borderRadius: 8,
+    marginBottom: 15,
+    alignItems: "center",
+  },
+  botonFavoritosActivo: {
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
+  },
+  textoFavoritos: {
+    fontWeight: "bold",
+    color: "#333333",
+  },
+  textoFavoritosActivo: {
+    color: "#FFFFFF",
+  },
+  contenidoTarjeta: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    minWidth: 0,
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+  descripcionTarjeta: {
+    fontSize: 14,
+    color: "#475569",
+    lineHeight: 20,
   },
-  title: {
-    textAlign: 'center',
+  botonCorazon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 10,
   },
-  code: {
-    textTransform: 'uppercase',
+  corazon: {
+    fontSize: 22,
+    color: "#94A3B8",
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  corazonActivo: {
+    color: "#E11D48",
+  },
+  botonIngresar: {
+    padding: 12,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  textoIngresar: {
+    color: "#2563EB",
+    fontWeight: "bold",
   },
 });

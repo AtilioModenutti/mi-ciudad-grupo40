@@ -32,7 +32,17 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-image",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Mi Ciudad utiliza la cámara para leer códigos QR turísticos.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,

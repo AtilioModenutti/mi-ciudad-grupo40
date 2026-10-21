@@ -118,6 +118,10 @@ export default function Inicio() {
         <Text style={estilos.textoEscanear}>Escanear QR</Text>
       </Pressable>
 
+      <Pressable style={estilos.botonMapa} onPress={() => router.push("/mapa")}>
+        <Text style={estilos.textoMapa}>Ver mapa turístico</Text>
+      </Pressable>
+
       <TextInput
         style={estilos.buscador}
         placeholder="Buscar lugares"
@@ -363,6 +367,17 @@ const estilos = StyleSheet.create({
   },
   textoIngresar: {
     color: "#2563EB",
+    fontWeight: "bold",
+  },
+  botonMapa: {
+    backgroundColor: "#15803D",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  textoMapa: {
+    color: "#FFFFFF",
     fontWeight: "bold",
   },
 });

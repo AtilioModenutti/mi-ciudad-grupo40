@@ -13,6 +13,8 @@ export default function RootLayout() {
           options={{ title: "Detalle del lugar" }}
         />
 
+        <Stack.Screen name="mapa" options={{ title: "Mapa turístico" }} />
+
         <Stack.Screen name="escanear" options={{ title: "Escanear QR" }} />
 
         <Stack.Screen name="ingresar" options={{ title: "Ingresar" }} />

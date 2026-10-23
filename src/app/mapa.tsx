@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
 import { obtenerLugares } from "@/servicios/lugares";
 import type { Lugar } from "@/tipos/lugar";
@@ -39,11 +40,28 @@ export default function MapaScreen() {
       ) : lugares.length === 0 ? (
         <Text>No hay lugares disponibles.</Text>
       ) : (
-        lugares.map((lugar) => (
-          <Text key={lugar.id} style={styles.texto}>
-            {lugar.nombre}
-          </Text>
-        ))
+        <MapView
+          provider={PROVIDER_GOOGLE}
+          style={styles.mapa}
+          initialRegion={{
+            latitude: -32.223,
+            longitude: -58.18,
+            latitudeDelta: 0.16,
+            longitudeDelta: 0.22,
+          }}
+        >
+          {lugares.map((lugar) => (
+            <Marker
+              key={lugar.id}
+              coordinate={{
+                latitude: lugar.coordenadas.latitud,
+                longitude: lugar.coordenadas.longitud,
+              }}
+              title={lugar.nombre}
+              description={lugar.descripcionCorta}
+            />
+          ))}
+        </MapView>
       )}
     </View>
   );
@@ -52,7 +70,6 @@ export default function MapaScreen() {
 const styles = StyleSheet.create({
   contenedor: {
     flex: 1,
-    padding: 20,
     backgroundColor: "#FFFFFF",
   },
   titulo: {
@@ -61,8 +78,7 @@ const styles = StyleSheet.create({
     color: "#000000",
     marginBottom: 20,
   },
-  texto: {
-    color: "#000000",
-    marginBottom: 12,
+  mapa: {
+    flex: 1,
   },
 });

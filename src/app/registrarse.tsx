@@ -1,3 +1,4 @@
+import { registrarUsuario } from "@/servicios/autenticacion";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput } from "react-native";
@@ -6,16 +7,21 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 export default function Registrarse() {
   const [nombre, setNombre] = useState("");
   const [correo, setCorreo] = useState("");
-  const [contrasena, setContrasena] = useState("");
-  const [confirmarContrasena, setConfirmarContrasena] = useState("");
+  const [contrasenia, setContrasenia] = useState("");
+  const [confirmarContrasenia, setConfirmarContrasenia] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [cargando, setCargando] = useState(false);
 
-  function validarRegistro() {
+  async function validarRegistro() {
+    if (cargando) {
+      return;
+    }
+
     if (
       !nombre.trim() ||
       !correo.trim() ||
-      !contrasena ||
-      !confirmarContrasena
+      !contrasenia ||
+      !confirmarContrasenia
     ) {
       setMensaje("Completá todos los campos.");
       return;
@@ -28,17 +34,38 @@ export default function Registrarse() {
       return;
     }
 
-    if (contrasena.length < 8) {
+    if (contrasenia.length < 8) {
       setMensaje("La contraseña debe tener al menos 8 caracteres.");
       return;
     }
 
-    if (contrasena !== confirmarContrasena) {
+    if (contrasenia !== confirmarContrasenia) {
       setMensaje("Las contraseñas no coinciden.");
       return;
     }
 
-    setMensaje("Formulario válido. Falta conectar el registro con la API.");
+    setMensaje("");
+    setCargando(true);
+
+    try {
+      const usuario = await registrarUsuario({
+        nombre: nombre.trim(),
+        correo: correo.trim(),
+        contrasenia: contrasenia,
+      });
+
+      setMensaje(
+        `Registro de prueba correcto. ¡Bienvenido, ${usuario.nombre}! Ya podés ingresar.`,
+      );
+    } catch (error) {
+      if (error instanceof Error) {
+        setMensaje(error.message);
+      } else {
+        setMensaje("Ocurrió un error al registrarse.");
+      }
+    } finally {
+      setCargando(false);
+    }
   }
 
   return (
@@ -78,8 +105,8 @@ export default function Registrarse() {
         style={estilos.input}
         placeholder="Mínimo 8 caracteres"
         secureTextEntry
-        value={contrasena}
-        onChangeText={setContrasena}
+        value={contrasenia}
+        onChangeText={setContrasenia}
       />
 
       <Text style={estilos.etiqueta}>Confirmar contraseña</Text>
@@ -87,14 +114,20 @@ export default function Registrarse() {
         style={estilos.input}
         placeholder="Repetí tu contraseña"
         secureTextEntry
-        value={confirmarContrasena}
-        onChangeText={setConfirmarContrasena}
+        value={confirmarContrasenia}
+        onChangeText={setConfirmarContrasenia}
       />
 
       {mensaje !== "" && <Text style={estilos.mensaje}>{mensaje}</Text>}
 
-      <Pressable style={estilos.boton} onPress={validarRegistro}>
-        <Text style={estilos.textoBoton}>Registrarme</Text>
+      <Pressable
+        style={[estilos.boton, cargando && { opacity: 0.6 }]}
+        onPress={validarRegistro}
+        disabled={cargando}
+      >
+        <Text style={estilos.textoBoton}>
+          {cargando ? "Registrando..." : "Registrarme"}
+        </Text>
       </Pressable>
 
       <Pressable style={estilos.volver} onPress={() => router.back()}>

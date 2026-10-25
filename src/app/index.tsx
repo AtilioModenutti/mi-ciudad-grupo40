@@ -2,7 +2,6 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   ScrollView,
@@ -13,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { guardarFavoritos, obtenerFavoritos } from "@/servicios/favoritos";
+import { useFavoritos } from "../contextos/FavoritosContexto";
 import { obtenerCategorias } from "../servicios/categorias";
 import { obtenerLugares } from "../servicios/lugares";
 import type { Categoria } from "../tipos/categoria";
@@ -28,9 +27,9 @@ export default function Inicio() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [busqueda, setBusqueda] = useState("");
-  const [favoritos, setFavoritos] = useState<string[]>([]);
   const [soloFavoritos, setSoloFavoritos] = useState(false);
-  const [favoritosListos, setFavoritosListos] = useState(false);
+  const { favoritos, cambiarFavorito, favoritosListos, errorFavoritos } =
+    useFavoritos();
 
   useEffect(() => {
     obtenerLugares()
@@ -45,46 +44,6 @@ export default function Inicio() {
       .catch(() => setError("No se pudieron cargar las categorías."));
   }, []);
 
-  useEffect(() => {
-    let activo = true;
-
-    obtenerFavoritos()
-      .then((guardados) => {
-        if (activo) {
-          setFavoritos(guardados);
-          setFavoritosListos(true);
-        }
-      })
-      .catch(() => {
-        if (activo) {
-          setError("No se pudieron recuperar los favoritos.");
-        }
-      });
-
-    return () => {
-      activo = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!favoritosListos) {
-      return;
-    }
-
-    guardarFavoritos(favoritos).catch(() => {
-      Alert.alert("Error", "No se pudieron guardar los favoritos.");
-    });
-  }, [favoritos, favoritosListos]);
-
-  function cambiarFavorito(id: string) {
-    setFavoritos((actuales) => {
-      if (actuales.includes(id)) {
-        return actuales.filter((favoritoId) => favoritoId !== id);
-      }
-      return [...actuales, id];
-    });
-  }
-
   const lugaresFiltrados = lugares.filter((lugar) => {
     const coincideNombre = lugar.nombre
       .toLowerCase()
@@ -98,6 +57,10 @@ export default function Inicio() {
 
     return coincideNombre && coincideCategoria && coincideFavorito;
   });
+
+  const cantidadFavoritosVisibles = lugaresFiltrados.filter((lugar) =>
+    favoritos.includes(lugar.id),
+  ).length;
 
   return (
     <SafeAreaView style={estilos.pantalla} edges={["top"]}>
@@ -175,12 +138,12 @@ export default function Inicio() {
         >
           {soloFavoritos
             ? "♥ Mostrando favoritos"
-            : `♡ Ver solo favoritos (${favoritos.length})`}
+            : `♡ Ver solo favoritos (${cantidadFavoritosVisibles})`}
         </Text>
       </Pressable>
 
-      {error ? (
-        <Text>{error}</Text>
+      {error || errorFavoritos ? (
+        <Text>{error || errorFavoritos}</Text>
       ) : cargando || !favoritosListos ? (
         <ActivityIndicator />
       ) : (

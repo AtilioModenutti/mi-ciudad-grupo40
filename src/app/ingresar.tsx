@@ -1,3 +1,4 @@
+import { iniciarSesion } from "@/servicios/autenticacion";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
@@ -7,21 +8,42 @@ export default function Ingresar() {
   const [correo, setCorreo] = useState("");
   const [contrasenia, setContrasenia] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [cargando, setCargando] = useState(false);
 
-  function validarIngreso() {
+  async function validarIngreso() {
+    if (cargando) {
+      return;
+    }
+
     if (!correo.trim() || !contrasenia) {
-      setMensaje("Completa todos los campos.");
+      setMensaje("Completá todos los campos.");
       return;
     }
 
     if (!correo.includes("@")) {
-      setMensaje("Ingresa un correo electronico válido.");
+      setMensaje("Ingresá un correo electrónico válido.");
       return;
     }
 
-    setMensaje(
-      "Formulario válido. Falta conectar la autenticación con la API.",
-    );
+    setMensaje("");
+    setCargando(true);
+
+    try {
+      const usuario = await iniciarSesion({
+        correo: correo.trim(),
+        contrasenia: contrasenia,
+      });
+
+      setMensaje(`Ingreso de prueba correcto. ¡Hola, ${usuario.nombre}!`);
+    } catch (error) {
+      if (error instanceof Error) {
+        setMensaje(error.message);
+      } else {
+        setMensaje("Ocurrió un error al iniciar sesión.");
+      }
+    } finally {
+      setCargando(false);
+    }
   }
 
   return (
@@ -58,8 +80,14 @@ export default function Ingresar() {
 
         {mensaje !== "" && <Text style={estilos.mensaje}>{mensaje}</Text>}
 
-        <Pressable style={estilos.boton} onPress={validarIngreso}>
-          <Text style={estilos.textoBoton}>Ingresar</Text>
+        <Pressable
+          style={[estilos.boton, cargando && { opacity: 0.6 }]}
+          onPress={validarIngreso}
+          disabled={cargando}
+        >
+          <Text style={estilos.textoBoton}>
+            {cargando ? "Ingresando..." : "Ingresar"}
+          </Text>
         </Pressable>
 
         <Pressable

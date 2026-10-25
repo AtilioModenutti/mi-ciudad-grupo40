@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 
+import { useFavoritos } from "@/contextos/FavoritosContexto";
 import { obtenerCategorias } from "@/servicios/categorias";
 import { Categoria } from "@/tipos/categoria";
 import { obtenerLugarPorId } from "../../servicios/lugares";
@@ -17,6 +18,7 @@ import type { Lugar } from "../../tipos/lugar";
 
 export default function DetalleLugar() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { favoritos, favoritosListos, cambiarFavorito } = useFavoritos();
 
   const [lugar, setLugar] = useState<Lugar | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -45,6 +47,8 @@ export default function DetalleLugar() {
   if (!lugar) {
     return <Text>Lugar no encontrado.</Text>;
   }
+
+  const esFavorito = favoritos.includes(lugar.id);
 
   const categoria = categorias.find(
     (categoria) => categoria.id === lugar.categoriaId,
@@ -111,7 +115,23 @@ export default function DetalleLugar() {
         </View>
       )}
 
-      <Text style={estilos.titulo}>{lugar.nombre}</Text>
+      <View style={estilos.encabezado}>
+        <Text style={estilos.titulo}>{lugar.nombre}</Text>
+
+        <Pressable
+          style={estilos.botonCorazon}
+          onPress={() => cambiarFavorito(lugar.id)}
+          disabled={!favoritosListos}
+          accessibilityRole="button"
+          accessibilityLabel={
+            esFavorito ? "Quitar de favoritos" : "Agregar a favoritos"
+          }
+        >
+          <Text style={[estilos.corazon, esFavorito && estilos.corazonActivo]}>
+            {esFavorito ? "♥" : "♡"}
+          </Text>
+        </Pressable>
+      </View>
 
       <Text
         style={[estilos.categoria, { color: categoria?.color ?? "#666666" }]}
@@ -166,9 +186,9 @@ const estilos = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   titulo: {
+    flex: 1,
     fontSize: 26,
     fontWeight: "bold",
-    marginBottom: 15,
   },
   descripcion: {
     fontSize: 16,
@@ -235,5 +255,24 @@ const estilos = StyleSheet.create({
   },
   botonDeshabilitado: {
     opacity: 0.35,
+  },
+  encabezado: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+    gap: 12,
+  },
+  botonCorazon: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  corazon: {
+    fontSize: 30,
+    color: "#777777",
+  },
+  corazonActivo: {
+    color: "#DC2626",
   },
 });

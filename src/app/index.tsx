@@ -80,7 +80,12 @@ export default function Inicio() {
       >
         <Text style={estilos.textoEscanear}>Escanear QR</Text>
       </Pressable>
-
+      <Pressable
+        style={estilos.botonEscanear}
+        onPress={() => router.push("/visitas")}
+      >
+        <Text style={estilos.textoEscanear}>Mi recorrido y visitas</Text>
+      </Pressable>
       <TextInput
         style={estilos.buscador}
         placeholder="Buscar lugares"

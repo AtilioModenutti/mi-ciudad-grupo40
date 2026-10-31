@@ -7,8 +7,8 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 export default function Registrarse() {
   const [nombre, setNombre] = useState("");
   const [correo, setCorreo] = useState("");
-  const [contrasenia, setContrasenia] = useState("");
-  const [confirmarContrasenia, setConfirmarContrasenia] = useState("");
+  const [contrasena, setContrasena] = useState("");
+  const [confirmarContrasena, setConfirmarContrasena] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [cargando, setCargando] = useState(false);
 
@@ -20,8 +20,8 @@ export default function Registrarse() {
     if (
       !nombre.trim() ||
       !correo.trim() ||
-      !contrasenia ||
-      !confirmarContrasenia
+      !contrasena ||
+      !confirmarContrasena
     ) {
       setMensaje("Completá todos los campos.");
       return;
@@ -34,12 +34,12 @@ export default function Registrarse() {
       return;
     }
 
-    if (contrasenia.length < 8) {
+    if (contrasena.length < 8) {
       setMensaje("La contraseña debe tener al menos 8 caracteres.");
       return;
     }
 
-    if (contrasenia !== confirmarContrasenia) {
+    if (contrasena !== confirmarContrasena) {
       setMensaje("Las contraseñas no coinciden.");
       return;
     }
@@ -48,14 +48,14 @@ export default function Registrarse() {
     setCargando(true);
 
     try {
-      const usuario = await registrarUsuario({
+      const sesion = await registrarUsuario({
         nombre: nombre.trim(),
         correo: correo.trim(),
-        contrasenia: contrasenia,
+        contrasenia: contrasena,
       });
 
       setMensaje(
-        `Registro de prueba correcto. ¡Bienvenido, ${usuario.nombre}! Ya podés ingresar.`,
+        `Registro confirmado por la API. ¡Bienvenido, ${sesion.usuario.nombre}! Ya podés ingresar.`,
       );
     } catch (error) {
       if (error instanceof Error) {
@@ -105,8 +105,8 @@ export default function Registrarse() {
         style={estilos.input}
         placeholder="Mínimo 8 caracteres"
         secureTextEntry
-        value={contrasenia}
-        onChangeText={setContrasenia}
+        value={contrasena}
+        onChangeText={setContrasena}
       />
 
       <Text style={estilos.etiqueta}>Confirmar contraseña</Text>
@@ -114,8 +114,8 @@ export default function Registrarse() {
         style={estilos.input}
         placeholder="Repetí tu contraseña"
         secureTextEntry
-        value={confirmarContrasenia}
-        onChangeText={setConfirmarContrasenia}
+        value={confirmarContrasena}
+        onChangeText={setConfirmarContrasena}
       />
 
       {mensaje !== "" && <Text style={estilos.mensaje}>{mensaje}</Text>}

@@ -1,3 +1,4 @@
+import { useSesion } from "@/contextos/SesionContexto";
 import { iniciarSesion } from "@/servicios/autenticacion";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -9,6 +10,8 @@ export default function Ingresar() {
   const [contrasenia, setContrasenia] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [cargando, setCargando] = useState(false);
+
+  const { activarSesion } = useSesion();
 
   async function validarIngreso() {
     if (cargando) {
@@ -29,12 +32,14 @@ export default function Ingresar() {
     setCargando(true);
 
     try {
-      const usuario = await iniciarSesion({
+      const sesion = await iniciarSesion({
         correo: correo.trim(),
         contrasenia: contrasenia,
       });
 
-      setMensaje(`Ingreso de prueba correcto. ¡Hola, ${usuario.nombre}!`);
+      await activarSesion(sesion);
+
+      router.replace("/");
     } catch (error) {
       if (error instanceof Error) {
         setMensaje(error.message);

@@ -18,6 +18,8 @@ import { obtenerLugares } from "../servicios/lugares";
 import type { Categoria } from "../tipos/categoria";
 import { Lugar } from "../tipos/lugar";
 
+import { useSesion } from "@/contextos/SesionContexto";
+
 export default function Inicio() {
   const [lugares, setLugares] = useState<Lugar[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -30,6 +32,8 @@ export default function Inicio() {
   const [soloFavoritos, setSoloFavoritos] = useState(false);
   const { favoritos, cambiarFavorito, favoritosListos, errorFavoritos } =
     useFavoritos();
+
+  const { usuario, cargandoSesion, errorSesion, cerrarSesion } = useSesion();
 
   useEffect(() => {
     obtenerLugares()
@@ -67,12 +71,32 @@ export default function Inicio() {
       <Text style={estilos.titulo}>Mi Ciudad</Text>
       <Text style={estilos.subtitulo}>Descubrí Colón, Entre Ríos</Text>
 
-      <Pressable
-        style={estilos.botonIngresar}
-        onPress={() => router.push("/ingresar")}
-      >
-        <Text style={estilos.textoIngresar}>Mi cuenta / Ingresar</Text>
-      </Pressable>
+      {cargandoSesion ? (
+        <Text style={estilos.textoIngresar}>Recuperando sesión...</Text>
+      ) : usuario ? (
+        <View style={estilos.resumenSesion}>
+          <Text style={estilos.textoIngresar}>Hola, {usuario.nombre}</Text>
+
+          <Pressable
+            style={estilos.botonCerrarSesion}
+            onPress={cerrarSesion}
+            accessibilityRole="button"
+          >
+            <Text style={estilos.textoCerrarSesion}>Cerrar sesión</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable
+          style={estilos.botonIngresar}
+          onPress={() => router.push("/ingresar")}
+        >
+          <Text style={estilos.textoIngresar}>Mi cuenta / Ingresar</Text>
+        </Pressable>
+      )}
+
+      {errorSesion !== "" && (
+        <Text style={{ color: "#B45309" }}>{errorSesion}</Text>
+      )}
 
       <Pressable
         style={estilos.botonEscanear}
@@ -327,5 +351,16 @@ const estilos = StyleSheet.create({
   textoIngresar: {
     color: "#2563EB",
     fontWeight: "bold",
+  },
+  resumenSesion: {
+    marginBottom: 14,
+  },
+  botonCerrarSesion: {
+    alignSelf: "flex-start",
+    paddingVertical: 10,
+  },
+  textoCerrarSesion: {
+    color: "#B91C1C",
+    fontSize: 14,
   },
 });

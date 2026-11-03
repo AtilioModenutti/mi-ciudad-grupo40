@@ -44,7 +44,13 @@
           "barcodeScannerEnabled": true
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Mi Ciudad utiliza la ubicación para mostrarte lugares turísticos cercanos."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

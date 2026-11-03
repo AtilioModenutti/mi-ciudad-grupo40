@@ -1,15 +1,19 @@
+import type { LocationObjectCoords } from "expo-location";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
 import { obtenerLugares } from "@/servicios/lugares";
+import { obtenerUbicacionActual } from "@/servicios/ubicacion";
 import type { Lugar } from "@/tipos/lugar";
 
 export default function MapaScreen() {
+  const [ubicacion, setUbicacion] = useState<LocationObjectCoords | null>(null);
   const [lugares, setLugares] = useState<Lugar[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
 
+  //Primero useeffect obtiene los lugares turisticos de nuestro servicio
   useEffect(() => {
     let activo = true;
 
@@ -23,6 +27,21 @@ export default function MapaScreen() {
       .finally(() => {
         if (activo) setCargando(false);
       });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  //Segundo useefect solicita el permiso y obtiene la ubicacion del turista
+  useEffect(() => {
+    let activo = true;
+
+    obtenerUbicacionActual().then((coordenadas) => {
+      if (activo) {
+        setUbicacion(coordenadas);
+      }
+    });
 
     return () => {
       activo = false;

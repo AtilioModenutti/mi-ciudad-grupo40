@@ -1,3 +1,4 @@
+import { registrarUsuario } from "@/servicios/autenticacion";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput } from "react-native";
@@ -9,8 +10,13 @@ export default function Registrarse() {
   const [contrasena, setContrasena] = useState("");
   const [confirmarContrasena, setConfirmarContrasena] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [cargando, setCargando] = useState(false);
 
-  function validarRegistro() {
+  async function validarRegistro() {
+    if (cargando) {
+      return;
+    }
+
     if (
       !nombre.trim() ||
       !correo.trim() ||
@@ -38,7 +44,28 @@ export default function Registrarse() {
       return;
     }
 
-    setMensaje("Formulario válido. Falta conectar el registro con la API.");
+    setMensaje("");
+    setCargando(true);
+
+    try {
+      const sesion = await registrarUsuario({
+        nombre: nombre.trim(),
+        correo: correo.trim(),
+        contrasenia: contrasena,
+      });
+
+      setMensaje(
+        `Registro confirmado por la API. ¡Bienvenido, ${sesion.usuario.nombre}! Ya podés ingresar.`,
+      );
+    } catch (error) {
+      if (error instanceof Error) {
+        setMensaje(error.message);
+      } else {
+        setMensaje("Ocurrió un error al registrarse.");
+      }
+    } finally {
+      setCargando(false);
+    }
   }
 
   return (
@@ -93,8 +120,14 @@ export default function Registrarse() {
 
       {mensaje !== "" && <Text style={estilos.mensaje}>{mensaje}</Text>}
 
-      <Pressable style={estilos.boton} onPress={validarRegistro}>
-        <Text style={estilos.textoBoton}>Registrarme</Text>
+      <Pressable
+        style={[estilos.boton, cargando && { opacity: 0.6 }]}
+        onPress={validarRegistro}
+        disabled={cargando}
+      >
+        <Text style={estilos.textoBoton}>
+          {cargando ? "Registrando..." : "Registrarme"}
+        </Text>
       </Pressable>
 
       <Pressable style={estilos.volver} onPress={() => router.back()}>

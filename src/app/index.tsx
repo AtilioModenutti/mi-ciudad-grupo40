@@ -2,7 +2,6 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   ScrollView,
@@ -13,11 +12,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { guardarFavoritos, obtenerFavoritos } from "@/servicios/favoritos";
+import { useFavoritos } from "../contextos/FavoritosContexto";
 import { obtenerCategorias } from "../servicios/categorias";
 import { obtenerLugares } from "../servicios/lugares";
 import type { Categoria } from "../tipos/categoria";
 import { Lugar } from "../tipos/lugar";
+
+import { useSesion } from "@/contextos/SesionContexto";
 
 export default function Inicio() {
   const [lugares, setLugares] = useState<Lugar[]>([]);
@@ -28,9 +29,11 @@ export default function Inicio() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [busqueda, setBusqueda] = useState("");
-  const [favoritos, setFavoritos] = useState<string[]>([]);
   const [soloFavoritos, setSoloFavoritos] = useState(false);
-  const [favoritosListos, setFavoritosListos] = useState(false);
+  const { favoritos, cambiarFavorito, favoritosListos, errorFavoritos } =
+    useFavoritos();
+
+  const { usuario, cargandoSesion, errorSesion, cerrarSesion } = useSesion();
 
   useEffect(() => {
     obtenerLugares()
@@ -44,46 +47,6 @@ export default function Inicio() {
       .then((respuesta) => setCategorias(respuesta.datos))
       .catch(() => setError("No se pudieron cargar las categorías."));
   }, []);
-
-  useEffect(() => {
-    let activo = true;
-
-    obtenerFavoritos()
-      .then((guardados) => {
-        if (activo) {
-          setFavoritos(guardados);
-          setFavoritosListos(true);
-        }
-      })
-      .catch(() => {
-        if (activo) {
-          setError("No se pudieron recuperar los favoritos.");
-        }
-      });
-
-    return () => {
-      activo = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!favoritosListos) {
-      return;
-    }
-
-    guardarFavoritos(favoritos).catch(() => {
-      Alert.alert("Error", "No se pudieron guardar los favoritos.");
-    });
-  }, [favoritos, favoritosListos]);
-
-  function cambiarFavorito(id: string) {
-    setFavoritos((actuales) => {
-      if (actuales.includes(id)) {
-        return actuales.filter((favoritoId) => favoritoId !== id);
-      }
-      return [...actuales, id];
-    });
-  }
 
   const lugaresFiltrados = lugares.filter((lugar) => {
     const coincideNombre = lugar.nombre
@@ -99,17 +62,41 @@ export default function Inicio() {
     return coincideNombre && coincideCategoria && coincideFavorito;
   });
 
+  const cantidadFavoritosVisibles = lugaresFiltrados.filter((lugar) =>
+    favoritos.includes(lugar.id),
+  ).length;
+
   return (
     <SafeAreaView style={estilos.pantalla} edges={["top"]}>
       <Text style={estilos.titulo}>Mi Ciudad</Text>
       <Text style={estilos.subtitulo}>Descubrí Colón, Entre Ríos</Text>
 
-      <Pressable
-        style={estilos.botonIngresar}
-        onPress={() => router.push("/ingresar")}
-      >
-        <Text style={estilos.textoIngresar}>Mi cuenta / Ingresar</Text>
-      </Pressable>
+      {cargandoSesion ? (
+        <Text style={estilos.textoIngresar}>Recuperando sesión...</Text>
+      ) : usuario ? (
+        <View style={estilos.resumenSesion}>
+          <Text style={estilos.textoIngresar}>Hola, {usuario.nombre}</Text>
+
+          <Pressable
+            style={estilos.botonCerrarSesion}
+            onPress={cerrarSesion}
+            accessibilityRole="button"
+          >
+            <Text style={estilos.textoCerrarSesion}>Cerrar sesión</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable
+          style={estilos.botonIngresar}
+          onPress={() => router.push("/ingresar")}
+        >
+          <Text style={estilos.textoIngresar}>Mi cuenta / Ingresar</Text>
+        </Pressable>
+      )}
+
+      {errorSesion !== "" && (
+        <Text style={{ color: "#B45309" }}>{errorSesion}</Text>
+      )}
 
       <Pressable
         style={estilos.botonEscanear}
@@ -118,8 +105,11 @@ export default function Inicio() {
         <Text style={estilos.textoEscanear}>Escanear QR</Text>
       </Pressable>
 
-      <Pressable style={estilos.botonMapa} onPress={() => router.push("/mapa")}>
-        <Text style={estilos.textoMapa}>Ver mapa turístico</Text>
+      <Pressable
+        style={estilos.botonEscanear}
+        onPress={() => router.push("/mapa")}
+      >
+        <Text style={estilos.textoEscanear}>Ver mapa turístico</Text>
       </Pressable>
 
       <TextInput
@@ -179,12 +169,12 @@ export default function Inicio() {
         >
           {soloFavoritos
             ? "♥ Mostrando favoritos"
-            : `♡ Ver solo favoritos (${favoritos.length})`}
+            : `♡ Ver solo favoritos (${cantidadFavoritosVisibles})`}
         </Text>
       </Pressable>
 
-      {error ? (
-        <Text>{error}</Text>
+      {error || errorFavoritos ? (
+        <Text>{error || errorFavoritos}</Text>
       ) : cargando || !favoritosListos ? (
         <ActivityIndicator />
       ) : (
@@ -369,15 +359,15 @@ const estilos = StyleSheet.create({
     color: "#2563EB",
     fontWeight: "bold",
   },
-  botonMapa: {
-    backgroundColor: "#15803D",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    marginBottom: 15,
+  resumenSesion: {
+    marginBottom: 14,
   },
-  textoMapa: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
+  botonCerrarSesion: {
+    alignSelf: "flex-start",
+    paddingVertical: 10,
+  },
+  textoCerrarSesion: {
+    color: "#B91C1C",
+    fontSize: 14,
   },
 });

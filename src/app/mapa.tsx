@@ -1,11 +1,13 @@
 import type { LocationObjectCoords } from "expo-location";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
+import { obtenerCategorias } from "@/servicios/categorias";
 import { obtenerLugares } from "@/servicios/lugares";
 import { obtenerUbicacionActual } from "@/servicios/ubicacion";
+import type { Categoria } from "@/tipos/categoria";
 import type { Lugar } from "@/tipos/lugar";
 
 export default function MapaScreen() {
@@ -13,6 +15,10 @@ export default function MapaScreen() {
   const [lugares, setLugares] = useState<Lugar[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<
+    string | null
+  >(null);
 
   //Primero useeffect obtiene los lugares turisticos de nuestro servicio
   useEffect(() => {
@@ -49,9 +55,79 @@ export default function MapaScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    let activo = true;
+
+    obtenerCategorias()
+      .then((respuesta) => {
+        if (activo) {
+          setCategorias([...respuesta.datos].sort((a, b) => a.orden - b.orden));
+        }
+      })
+      .catch((error) => {
+        console.warn("No se pudieron cargar las categorías", error);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  const lugaresFiltrados = lugares.filter((lugar) => {
+    return (
+      categoriaSeleccionada === null ||
+      lugar.categoriaId === categoriaSeleccionada
+    );
+  });
+
   return (
     <View style={styles.contenedor}>
       <Text style={styles.titulo}>Lugares turísticos</Text>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.barraFiltros}
+        contentContainerStyle={styles.contenidoFiltros}
+      >
+        <Pressable
+          style={[
+            styles.filtro,
+            categoriaSeleccionada === null && styles.filtroActivo,
+          ]}
+          onPress={() => setCategoriaSeleccionada(null)}
+        >
+          <Text
+            style={[
+              styles.textoFiltro,
+              categoriaSeleccionada === null && styles.textoFiltroActivo,
+            ]}
+          >
+            Todos
+          </Text>
+        </Pressable>
+
+        {categorias.map((categoria) => (
+          <Pressable
+            key={categoria.id}
+            style={[
+              styles.filtro,
+              categoriaSeleccionada === categoria.id && styles.filtroActivo,
+            ]}
+            onPress={() => setCategoriaSeleccionada(categoria.id)}
+          >
+            <Text
+              style={[
+                styles.textoFiltro,
+                categoriaSeleccionada === categoria.id &&
+                  styles.textoFiltroActivo,
+              ]}
+            >
+              {categoria.nombre}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
 
       {cargando ? (
         <Text>Cargando lugares...</Text>
@@ -71,7 +147,7 @@ export default function MapaScreen() {
             longitudeDelta: 0.22,
           }}
         >
-          {lugares.map((lugar) => (
+          {lugaresFiltrados.map((lugar) => (
             <Marker
               key={lugar.id}
               coordinate={{
@@ -107,5 +183,30 @@ const styles = StyleSheet.create({
   },
   mapa: {
     flex: 1,
+  },
+  barraFiltros: {
+    flexGrow: 0,
+    marginBottom: 12,
+  },
+  contenidoFiltros: {
+    paddingHorizontal: 12,
+    gap: 8,
+    alignItems: "center",
+  },
+  filtro: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: "#E5E7EB",
+  },
+  filtroActivo: {
+    backgroundColor: "#2563EB",
+  },
+  textoFiltro: {
+    color: "#111827",
+  },
+  textoFiltroActivo: {
+    color: "#FFFFFF",
+    fontWeight: "bold",
   },
 });

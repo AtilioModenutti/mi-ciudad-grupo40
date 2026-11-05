@@ -1,10 +1,18 @@
 import type { LocationObjectCoords } from "expo-location";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
 import { obtenerCategorias } from "@/servicios/categorias";
+import { abrirIndicaciones, type ModoViaje } from "@/servicios/indicaciones";
 import { obtenerLugares } from "@/servicios/lugares";
 import { obtenerUbicacionActual } from "@/servicios/ubicacion";
 import type { Categoria } from "@/tipos/categoria";
@@ -19,6 +27,9 @@ export default function MapaScreen() {
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<
     string | null
   >(null);
+  const [lugarSeleccionadoId, setLugarSeleccionadoId] = useState<string | null>(
+    null,
+  );
 
   //Primero useeffect obtiene los lugares turisticos de nuestro servicio
   useEffect(() => {
@@ -80,6 +91,22 @@ export default function MapaScreen() {
     );
   });
 
+  const lugarSeleccionado =
+    lugaresFiltrados.find((lugar) => lugar.id === lugarSeleccionadoId) ?? null;
+
+  async function irAlLugar(modo: ModoViaje) {
+    if (!lugarSeleccionado) return;
+
+    try {
+      await abrirIndicaciones(lugarSeleccionado.coordenadas, modo);
+    } catch {
+      Alert.alert(
+        "No se pudieron abrir las indicaciones",
+        "Verificá que tengas una aplicación de mapas disponible.",
+      );
+    }
+  }
+
   return (
     <View style={styles.contenedor}>
       <Text style={styles.titulo}>Lugares turísticos</Text>
@@ -136,35 +163,62 @@ export default function MapaScreen() {
       ) : lugares.length === 0 ? (
         <Text>No hay lugares disponibles.</Text>
       ) : (
-        <MapView
-          provider={PROVIDER_GOOGLE}
-          showsUserLocation={ubicacion !== null}
-          style={styles.mapa}
-          initialRegion={{
-            latitude: -32.223,
-            longitude: -58.18,
-            latitudeDelta: 0.16,
-            longitudeDelta: 0.22,
-          }}
-        >
-          {lugaresFiltrados.map((lugar) => (
-            <Marker
-              key={lugar.id}
-              coordinate={{
-                latitude: lugar.coordenadas.latitud,
-                longitude: lugar.coordenadas.longitud,
-              }}
-              title={lugar.nombre}
-              description={lugar.descripcionCorta}
-              onCalloutPress={() =>
-                router.push({
-                  pathname: "/lugar/[id]",
-                  params: { id: lugar.id },
-                })
-              }
-            />
-          ))}
-        </MapView>
+        <>
+          <MapView
+            provider={PROVIDER_GOOGLE}
+            showsUserLocation={ubicacion !== null}
+            style={styles.mapa}
+            initialRegion={{
+              latitude: -32.223,
+              longitude: -58.18,
+              latitudeDelta: 0.16,
+              longitudeDelta: 0.22,
+            }}
+          >
+            {lugaresFiltrados.map((lugar) => (
+              <Marker
+                key={lugar.id}
+                coordinate={{
+                  latitude: lugar.coordenadas.latitud,
+                  longitude: lugar.coordenadas.longitud,
+                }}
+                title={lugar.nombre}
+                description={lugar.descripcionCorta}
+                onPress={() => setLugarSeleccionadoId(lugar.id)}
+                onCalloutPress={() =>
+                  router.push({
+                    pathname: "/lugar/[id]",
+                    params: { id: lugar.id },
+                  })
+                }
+              />
+            ))}
+          </MapView>
+
+          {lugarSeleccionado && (
+            <View style={styles.panelIndicaciones}>
+              <Text style={styles.nombreDestino}>
+                Cómo llegar a {lugarSeleccionado.nombre}
+              </Text>
+
+              <View style={styles.botonesIndicaciones}>
+                <Pressable
+                  style={styles.botonIndicaciones}
+                  onPress={() => irAlLugar("walking")}
+                >
+                  <Text style={styles.textoIndicaciones}>Ir caminando</Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.botonIndicaciones}
+                  onPress={() => irAlLugar("driving")}
+                >
+                  <Text style={styles.textoIndicaciones}>Ir en auto</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </>
       )}
     </View>
   );
@@ -206,6 +260,33 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   textoFiltroActivo: {
+    color: "#FFFFFF",
+    fontWeight: "bold",
+  },
+  panelIndicaciones: {
+    padding: 12,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    gap: 10,
+  },
+  nombreDestino: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#111827",
+  },
+  botonesIndicaciones: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  botonIndicaciones: {
+    flex: 1,
+    backgroundColor: "#2563EB",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  textoIndicaciones: {
     color: "#FFFFFF",
     fontWeight: "bold",
   },

@@ -1,4 +1,5 @@
 import type { LocationObjectCoords } from "expo-location";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
@@ -79,6 +80,12 @@ export default function MapaScreen() {
               }}
               title={lugar.nombre}
               description={lugar.descripcionCorta}
+              onCalloutPress={() =>
+                router.push({
+                  pathname: "/lugar/[id]",
+                  params: { id: lugar.id },
+                })
+              }
             />
           ))}
         </MapView>

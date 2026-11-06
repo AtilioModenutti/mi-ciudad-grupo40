@@ -31,6 +31,7 @@ export default function MapaScreen() {
   const [lugarSeleccionadoId, setLugarSeleccionadoId] = useState<string | null>(
     null,
   );
+  const [mostrarCercanos, setMostrarCercanos] = useState(false);
 
   //Primero useeffect obtiene los lugares turisticos de nuestro servicio
   useEffect(() => {
@@ -104,6 +105,15 @@ export default function MapaScreen() {
       ? distanceMeters(coordenadasTurista, lugarSeleccionado.coordenadas)
       : null;
 
+  const lugaresCercanos = coordenadasTurista
+    ? lugaresFiltrados
+        .map((lugar) => ({
+          lugar,
+          distancia: distanceMeters(coordenadasTurista, lugar.coordenadas),
+        }))
+        .sort((a, b) => a.distancia - b.distancia)
+    : [];
+
   async function irAlLugar(modo: ModoViaje) {
     if (!lugarSeleccionado) return;
 
@@ -165,6 +175,51 @@ export default function MapaScreen() {
           </Pressable>
         ))}
       </ScrollView>
+
+      <Pressable
+        style={styles.botonCercanos}
+        onPress={() => setMostrarCercanos(!mostrarCercanos)}
+      >
+        <Text style={styles.textoBotonCercanos}>
+          {mostrarCercanos ? "Ocultar lugares cercanos" : "Qué tenés cerca"}
+        </Text>
+      </Pressable>
+
+      {mostrarCercanos && (
+        <View style={styles.contenedorCercanos}>
+          {!coordenadasTurista ? (
+            <Text style={styles.mensajeCercanos}>
+              No se pudo obtener tu ubicación para calcular los lugares
+              cercanos.
+            </Text>
+          ) : lugaresCercanos.length === 0 ? (
+            <Text style={styles.mensajeCercanos}>
+              No hay lugares disponibles para este filtro.
+            </Text>
+          ) : (
+            <ScrollView style={styles.listaCercanos} nestedScrollEnabled>
+              {lugaresCercanos.map(({ lugar, distancia }) => (
+                <Pressable
+                  key={lugar.id}
+                  style={styles.itemCercano}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/lugar/[id]",
+                      params: { id: lugar.id },
+                    })
+                  }
+                >
+                  <Text style={styles.nombreCercano}>{lugar.nombre}</Text>
+
+                  <Text style={styles.distanciaCercano}>
+                    {formatDistance(distancia)}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      )}
 
       {cargando ? (
         <Text>Cargando lugares...</Text>
@@ -320,5 +375,44 @@ const styles = StyleSheet.create({
   textoDistancia: {
     fontSize: 14,
     color: "#475569",
+  },
+  botonCercanos: {
+    backgroundColor: "#2563EB",
+    padding: 12,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  textoBotonCercanos: {
+    color: "#FFFFFF",
+    fontWeight: "bold",
+  },
+  contenedorCercanos: {
+    marginHorizontal: 12,
+    marginBottom: 8,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    padding: 8,
+  },
+  listaCercanos: {
+    maxHeight: 180,
+  },
+  itemCercano: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  nombreCercano: {
+    fontWeight: "bold",
+    color: "#111827",
+  },
+  distanciaCercano: {
+    color: "#475569",
+    marginTop: 4,
+  },
+  mensajeCercanos: {
+    color: "#475569",
+    padding: 10,
   },
 });

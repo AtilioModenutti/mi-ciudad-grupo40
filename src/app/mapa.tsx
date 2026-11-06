@@ -1,5 +1,6 @@
 import type { LocationObjectCoords } from "expo-location";
-import { router } from "expo-router";
+import { router, useIsFocused } from "expo-router";
+import { Magnetometer } from "expo-sensors";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -11,7 +12,13 @@ import {
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
-import { distanceMeters, formatDistance } from "@/lib/geo";
+import {
+  arrowRotationDegrees,
+  bearingDegrees,
+  distanceMeters,
+  formatDistance,
+  headingFromMagnetometer,
+} from "@/lib/geo";
 import { obtenerCategorias } from "@/servicios/categorias";
 import { abrirIndicaciones, type ModoViaje } from "@/servicios/indicaciones";
 import { obtenerLugares } from "@/servicios/lugares";
@@ -32,6 +39,11 @@ export default function MapaScreen() {
     null,
   );
   const [mostrarCercanos, setMostrarCercanos] = useState(false);
+  const isFocused = useIsFocused();
+  const [rumbo, setRumbo] = useState<number | null>(null);
+  const [sensorDisponible, setSensorDisponible] = useState<boolean | null>(
+    null,
+  );
 
   //Primero useeffect obtiene los lugares turisticos de nuestro servicio
   useEffect(() => {
@@ -113,6 +125,59 @@ export default function MapaScreen() {
         }))
         .sort((a, b) => a.distancia - b.distancia)
     : [];
+
+  useEffect(() => {
+    if (!isFocused || !lugarSeleccionado) {
+      setRumbo(null);
+      return;
+    }
+
+    let cancelado = false;
+    let suscripcion: ReturnType<typeof Magnetometer.addListener> | null = null;
+
+    setRumbo(null);
+    setSensorDisponible(null);
+
+    async function iniciarSensor() {
+      try {
+        const disponible = await Magnetometer.isAvailableAsync();
+
+        if (cancelado) return;
+
+        setSensorDisponible(disponible);
+
+        if (!disponible) return;
+
+        Magnetometer.setUpdateInterval(200);
+
+        suscripcion = Magnetometer.addListener(({ x, y }) => {
+          if (!cancelado) {
+            setRumbo(headingFromMagnetometer(x, y));
+          }
+        });
+      } catch (error) {
+        if (!cancelado) {
+          setSensorDisponible(false);
+          console.warn("Error al iniciar el magnetómetro:", error);
+        }
+      }
+    }
+
+    void iniciarSensor();
+
+    return () => {
+      cancelado = true;
+      suscripcion?.remove();
+    };
+  }, [isFocused, lugarSeleccionado?.id]);
+
+  const rotacionFlecha =
+    coordenadasTurista && lugarSeleccionado && rumbo !== null
+      ? arrowRotationDegrees(
+          bearingDegrees(coordenadasTurista, lugarSeleccionado.coordenadas),
+          rumbo,
+        )
+      : null;
 
   async function irAlLugar(modo: ModoViaje) {
     if (!lugarSeleccionado) return;
@@ -283,6 +348,30 @@ export default function MapaScreen() {
                 </Text>
               )}
 
+              {rotacionFlecha !== null ? (
+                <View style={styles.filaBrujula}>
+                  <View
+                    style={{
+                      transform: [{ rotate: `${rotacionFlecha}deg` }],
+                    }}
+                  >
+                    <Text style={styles.flechaBrujula}>↑</Text>
+                  </View>
+
+                  <Text style={styles.textoBrujula}>
+                    Dirección aproximada hacia el destino
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.textoBrujula}>
+                  {!coordenadasTurista
+                    ? "Brújula no disponible sin ubicación GPS."
+                    : sensorDisponible === false
+                      ? "Este dispositivo no dispone de magnetómetro."
+                      : "Obteniendo orientación del teléfono..."}
+                </Text>
+              )}
+
               <View style={styles.botonesIndicaciones}>
                 <Pressable
                   style={styles.botonIndicaciones}
@@ -414,5 +503,20 @@ const styles = StyleSheet.create({
   mensajeCercanos: {
     color: "#475569",
     padding: 10,
+  },
+  filaBrujula: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  flechaBrujula: {
+    fontSize: 36,
+    fontWeight: "bold",
+    color: "#2563EB",
+  },
+  textoBrujula: {
+    flexShrink: 1,
+    fontSize: 14,
+    color: "#475569",
   },
 });

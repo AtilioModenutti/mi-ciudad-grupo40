@@ -32,3 +32,29 @@ export function formatDistance(meters: number): string {
 
   return `A ${(meters / 1000).toFixed(1)} km`;
 }
+
+function toDegrees(radians: number): number {
+  return (radians * 180) / Math.PI;
+}
+
+export function bearingDegrees(from: Coordenadas, to: Coordenadas): number {
+  const lat1 = toRadians(from.latitud);
+  const lat2 = toRadians(to.latitud);
+  const dLng = toRadians(to.longitud - from.longitud);
+
+  const y = Math.sin(dLng) * Math.cos(lat2);
+
+  const x =
+    Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+
+  return (toDegrees(Math.atan2(y, x)) + 360) % 360;
+}
+
+export function headingFromMagnetometer(x: number, y: number): number {
+  return (toDegrees(Math.atan2(y, x)) + 360) % 360;
+}
+
+export function arrowRotationDegrees(bearing: number, heading: number): number {
+  return (bearing - heading + 360) % 360;
+}

@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
+import { distanceMeters, formatDistance } from "@/lib/geo";
 import { obtenerCategorias } from "@/servicios/categorias";
 import { abrirIndicaciones, type ModoViaje } from "@/servicios/indicaciones";
 import { obtenerLugares } from "@/servicios/lugares";
@@ -93,6 +94,15 @@ export default function MapaScreen() {
 
   const lugarSeleccionado =
     lugaresFiltrados.find((lugar) => lugar.id === lugarSeleccionadoId) ?? null;
+
+  const coordenadasTurista = ubicacion
+    ? { latitud: ubicacion.latitude, longitud: ubicacion.longitude }
+    : null;
+
+  const distanciaSeleccionada =
+    coordenadasTurista && lugarSeleccionado
+      ? distanceMeters(coordenadasTurista, lugarSeleccionado.coordenadas)
+      : null;
 
   async function irAlLugar(modo: ModoViaje) {
     if (!lugarSeleccionado) return;
@@ -183,7 +193,13 @@ export default function MapaScreen() {
                   longitude: lugar.coordenadas.longitud,
                 }}
                 title={lugar.nombre}
-                description={lugar.descripcionCorta}
+                description={
+                  coordenadasTurista
+                    ? `${formatDistance(
+                        distanceMeters(coordenadasTurista, lugar.coordenadas),
+                      )} . ${lugar.descripcionCorta}`
+                    : lugar.descripcionCorta
+                }
                 onPress={() => setLugarSeleccionadoId(lugar.id)}
                 onCalloutPress={() =>
                   router.push({
@@ -200,6 +216,17 @@ export default function MapaScreen() {
               <Text style={styles.nombreDestino}>
                 Cómo llegar a {lugarSeleccionado.nombre}
               </Text>
+
+              {distanciaSeleccionada !== null ? (
+                <Text style={styles.textoDistancia}>
+                  {formatDistance(distanciaSeleccionada)} de tu ubicación
+                  {" (en línea recta)"}
+                </Text>
+              ) : (
+                <Text style={styles.textoDistancia}>
+                  Distancia no disponible: no se obtuvo tu ubicación.
+                </Text>
+              )}
 
               <View style={styles.botonesIndicaciones}>
                 <Pressable
@@ -289,5 +316,9 @@ const styles = StyleSheet.create({
   textoIndicaciones: {
     color: "#FFFFFF",
     fontWeight: "bold",
+  },
+  textoDistancia: {
+    fontSize: 14,
+    color: "#475569",
   },
 });

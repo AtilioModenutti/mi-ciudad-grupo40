@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   ScrollView,
@@ -19,6 +20,11 @@ import type { Categoria } from "../tipos/categoria";
 import { Lugar } from "../tipos/lugar";
 
 import { useSesion } from "@/contextos/SesionContexto";
+import { comprobarBiometria, verificarBiometria } from "@/servicios/biometria";
+import {
+  guardarBiometriaHabilitada,
+  obtenerBiometriaHabilitada,
+} from "@/servicios/preferencias-biometria";
 
 export default function Inicio() {
   const [lugares, setLugares] = useState<Lugar[]>([]);
@@ -33,7 +39,99 @@ export default function Inicio() {
   const { favoritos, cambiarFavorito, favoritosListos, errorFavoritos } =
     useFavoritos();
 
-  const { usuario, cargandoSesion, errorSesion, cerrarSesion } = useSesion();
+  const {
+    usuario,
+    cargandoSesion,
+    errorSesion,
+    cerrarSesion,
+    sesionBloqueada,
+    verificandoBiometria,
+    desbloquearSesion,
+    actualizarBiometria,
+  } = useSesion();
+
+  const [biometriaHabilitada, setBiometriaHabilitada] = useState(false);
+  const [preferenciaLista, setPreferenciaLista] = useState(false);
+  const [guardandoPreferencia, setGuardandoPreferencia] = useState(false);
+  const usuarioId = usuario?.id;
+
+  useEffect(() => {
+    let activo = true;
+    setBiometriaHabilitada(false);
+    setPreferenciaLista(false);
+
+    if (!usuarioId) {
+      setPreferenciaLista(true);
+      return;
+    }
+
+    obtenerBiometriaHabilitada(usuarioId)
+      .then((habilitada) => {
+        if (activo) {
+          setBiometriaHabilitada(habilitada);
+        }
+      })
+      .catch(() => {
+        if (activo) {
+          Alert.alert(
+            "Error",
+            "No se pudo recuperar la preferencia biométrica.",
+          );
+        }
+      })
+      .finally(() => {
+        if (activo) {
+          setPreferenciaLista(true);
+        }
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, [usuarioId]);
+
+  async function cambiarPreferenciaBiometria() {
+    if (!usuario || !preferenciaLista || guardandoPreferencia) {
+      return;
+    }
+
+    setGuardandoPreferencia(true);
+
+    try {
+      if (!biometriaHabilitada) {
+        const estado = await comprobarBiometria();
+        if (estado !== "disponible") {
+          Alert.alert(
+            "Biometría",
+            "Primero configurá una huella o rostro en el dispositivo.",
+          );
+          return;
+        }
+
+        const verificada = await verificarBiometria();
+        if (!verificada) {
+          Alert.alert("Biometría", "No se completó la verificación.");
+          return;
+        }
+      }
+
+      const nuevoValor = !biometriaHabilitada;
+      await guardarBiometriaHabilitada(usuario.id, nuevoValor);
+      setBiometriaHabilitada(nuevoValor);
+      actualizarBiometria(nuevoValor);
+
+      Alert.alert(
+        "Preferencia guardada",
+        nuevoValor
+          ? "El reingreso biométrico quedó activado."
+          : "El reingreso biométrico quedó desactivado.",
+      );
+    } catch {
+      Alert.alert("Error", "No se pudo guardar la preferencia biométrica.");
+    } finally {
+      setGuardandoPreferencia(false);
+    }
+  }
 
   useEffect(() => {
     obtenerLugares()
@@ -73,6 +171,33 @@ export default function Inicio() {
 
       {cargandoSesion ? (
         <Text style={estilos.textoIngresar}>Recuperando sesión...</Text>
+      ) : sesionBloqueada ? (
+        <View style={estilos.resumenSesion}>
+          <Text style={estilos.textoIngresar}>Sesión protegida</Text>
+
+          <Pressable
+            style={estilos.botonBiometria}
+            onPress={desbloquearSesion}
+            disabled={verificandoBiometria}
+            accessibilityRole="button"
+          >
+            <Text style={estilos.textoIngresar}>
+              {verificandoBiometria
+                ? "Verificando..."
+                : "Desbloquear con biometría"}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={estilos.botonBiometria}
+            onPress={() => router.push("/ingresar")}
+            accessibilityRole="button"
+          >
+            <Text style={estilos.textoIngresar}>
+              Ingresar con correo y contraseña
+            </Text>
+          </Pressable>
+        </View>
       ) : usuario ? (
         <View style={estilos.resumenSesion}>
           <Text style={estilos.textoIngresar}>Hola, {usuario.nombre}</Text>
@@ -83,6 +208,26 @@ export default function Inicio() {
             accessibilityRole="button"
           >
             <Text style={estilos.textoCerrarSesion}>Cerrar sesión</Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              estilos.botonBiometria,
+              (!preferenciaLista || guardandoPreferencia) && { opacity: 0.5 },
+            ]}
+            onPress={cambiarPreferenciaBiometria}
+            disabled={!preferenciaLista || guardandoPreferencia}
+            accessibilityRole="button"
+          >
+            <Text style={estilos.textoIngresar}>
+              {!preferenciaLista
+                ? "Cargando preferencia..."
+                : guardandoPreferencia
+                  ? "Guardando..."
+                  : biometriaHabilitada
+                    ? "Desactivar biometría"
+                    : "Activar biometría"}
+            </Text>
           </Pressable>
         </View>
       ) : (
@@ -356,6 +501,10 @@ const estilos = StyleSheet.create({
     marginBottom: 14,
   },
   botonCerrarSesion: {
+    alignSelf: "flex-start",
+    paddingVertical: 10,
+  },
+  botonBiometria: {
     alignSelf: "flex-start",
     paddingVertical: 10,
   },

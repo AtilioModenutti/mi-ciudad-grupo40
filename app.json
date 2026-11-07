@@ -43,7 +43,13 @@
         }
       ],
       "expo-sqlite",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Mi Ciudad utiliza Face ID/Huella para verificar tu identidad al reingresar."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

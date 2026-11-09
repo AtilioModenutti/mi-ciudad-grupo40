@@ -12,6 +12,8 @@ import {
 } from "react-native";
 
 import { obtenerLugarPorCodigoQr } from "../servicios/lugares";
+import { guardarVisitas, obtenerVisitas } from "../servicios/visitas";
+import type { Visita } from "../tipos/visita";
 
 export default function Escanear() {
   const [permiso, solicitarPermiso] = useCameraPermissions();
@@ -26,6 +28,20 @@ export default function Escanear() {
       const lugar = await obtenerLugarPorCodigoQr(data);
 
       if (lugar) {
+        const visitasActuales = await obtenerVisitas();
+
+        const nuevaVisita: Visita = {
+          id: `${lugar.id}-${Date.now()}`,
+          lugarId: lugar.id,
+          fecha: new Date().toISOString(),
+          metodo: "qr",
+          nota: null,
+          fotos: [],
+          sincronizada: false,
+        };
+
+        await guardarVisitas([...visitasActuales, nuevaVisita]);
+
         router.replace({
           pathname: "/lugar/[id]",
           params: { id: lugar.id },

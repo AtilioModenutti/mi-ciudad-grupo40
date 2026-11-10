@@ -9,6 +9,10 @@ export default function HomeScreen() {
     router.push("/agenda");
   };
 
+  const irAAudioguias = () => {
+    router.push("/audioguias");
+  };
+
   return (
     <View style={styles.pantalla}>
       <SafeAreaView style={styles.safeArea}>
@@ -19,8 +23,9 @@ export default function HomeScreen() {
           <Text style={styles.subtitulo}>Guía Turística y Cultural</Text>
         </View>
 
-        {/* Botón Principal a la Agenda */}
-        <View style={styles.contenedorBoton}>
+        {/* Accesos Principales del Módulo Integrante 3 */}
+        <View style={styles.contenedorBotones}>
+          {/* Botón a la Agenda */}
           <Pressable
             accessible={true}
             role="button"
@@ -38,7 +43,33 @@ export default function HomeScreen() {
             <View style={styles.textosBoton}>
               <Text style={styles.textoBotonTitulo}>Agenda de Eventos</Text>
               <Text style={styles.textoBotonDesc}>
-                Visitas nocturnas, peñas y actividades
+                Visitas nocturnas, peñas y recordatorios
+              </Text>
+            </View>
+
+            <Text style={styles.flecha}>➔</Text>
+          </Pressable>
+
+          {/* Botón a las Audioguías Offline */}
+          <Pressable
+            accessible={true}
+            role="button"
+            accessibilityLabel="Abrir Audioguías Turísticas de Colón"
+            onPress={irAAudioguias}
+            style={({ pressed }) => [
+              styles.tarjetaBoton,
+              styles.tarjetaSeparador,
+              pressed && styles.tarjetaPresionada,
+            ]}
+          >
+            <View style={[styles.iconoContenedor, styles.iconoAudioguia]}>
+              <Text style={styles.iconoEmoji}>🎧</Text>
+            </View>
+
+            <View style={styles.textosBoton}>
+              <Text style={styles.textoBotonTitulo}>Audioguías Turísticas</Text>
+              <Text style={styles.textoBotonDesc}>
+                Molino Forclaz y El Palmar sin conexión
               </Text>
             </View>
 
@@ -53,23 +84,23 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   pantalla: {
     flex: 1,
-    backgroundColor: "#0F172A", // Fondo oscuro moderno para buen contraste
+    backgroundColor: "#0F172A",
   },
   safeArea: {
     flex: 1,
     paddingHorizontal: 20,
     justifyContent: "space-between",
-    paddingBottom: 60,
+    paddingBottom: 40,
   },
   cabecera: {
     alignItems: "center",
-    marginTop: 30,
+    marginTop: 20,
     gap: 8,
   },
   titulo: {
     fontSize: 30,
     fontWeight: "800",
-    color: "#38BDF8", // Celeste brillante visible al sol y en modo oscuro
+    color: "#38BDF8",
     textAlign: "center",
     marginTop: 12,
   },
@@ -78,16 +109,16 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
     textAlign: "center",
   },
-  contenedorBoton: {
+  contenedorBotones: {
     width: "100%",
-    paddingBottom: 20,
+    paddingBottom: 10,
   },
   tarjetaBoton: {
     backgroundColor: "#1E293B",
     borderWidth: 1.5,
     borderColor: "#38BDF8",
     borderRadius: 20,
-    padding: 18,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "stretch",
@@ -96,6 +127,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
+  },
+  tarjetaSeparador: {
+    marginTop: 14,
   },
   tarjetaPresionada: {
     opacity: 0.8,
@@ -111,6 +145,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 14,
   },
+  iconoAudioguia: {
+    backgroundColor: "#0F766E",
+  },
   iconoEmoji: {
     fontSize: 24,
   },
@@ -118,7 +155,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   textoBotonTitulo: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700",
     color: "#FFFFFF",
   },

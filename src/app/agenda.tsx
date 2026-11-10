@@ -1,14 +1,15 @@
 import { TarjetaEvento } from "@/components/TarjetaEvento";
 import { AgendaServicio } from "@/servicios/agenda.servicio";
 import { Evento } from "@/tipos/agenda";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -41,8 +42,11 @@ export default function AgendaScreen() {
   };
 
   const alSeleccionarEvento = (evento: Evento) => {
-    // Al tocar un evento
-    console.log("Evento seleccionado:", evento.id);
+    // Navegación imperativa con parámetro tipado
+    router.push({
+      pathname: "/evento/[id]",
+      params: { id: evento.id },
+    });
   };
 
   return (

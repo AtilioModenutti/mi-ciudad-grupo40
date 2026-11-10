@@ -1,5 +1,6 @@
 import type { BarcodeScanningResult } from "expo-camera";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -41,6 +42,7 @@ export default function Escanear() {
         };
 
         await guardarVisitas([...visitasActuales, nuevaVisita]);
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         router.replace({
           pathname: "/lugar/[id]",

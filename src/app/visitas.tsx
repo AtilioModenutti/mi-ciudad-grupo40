@@ -1,12 +1,13 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-
+import { obtenerLugarPorId } from "../servicios/lugares";
 import { obtenerVisitas } from "../servicios/visitas";
 import type { Visita } from "../tipos/visita";
 
 export default function Visitas() {
   const [visitas, setVisitas] = useState<Visita[]>([]);
+  const [nombresLugares, setNombresLugares] = useState<Record<string, string>>({});
 
   useFocusEffect(
     useCallback(() => {
@@ -14,6 +15,15 @@ export default function Visitas() {
         try {
           const guardadas = await obtenerVisitas();
           setVisitas(guardadas);
+          
+          const nombres: Record<string, string> = {};
+
+          for (const visita of guardadas) {
+            const lugar = await obtenerLugarPorId(visita.lugarId);
+            nombres[visita.lugarId] = lugar?.nombre ?? visita.lugarId;
+          }
+
+          setNombresLugares(nombres);          
         } catch (error) {
           console.error("Error al cargar las visitas:", error);
         }
@@ -45,10 +55,21 @@ export default function Visitas() {
         visitas.map((visita) => (
           <View key={visita.id} style={estilos.tarjeta}>
             <Text style={estilos.subtitulo}>
-              Lugar visitado: {visita.lugarId}
+              Lugar visitado: {nombresLugares[visita.lugarId] ?? visita.lugarId}
             </Text>
 
-            <Text style={estilos.texto}>Fecha: {visita.fecha}</Text>
+            <Text style={estilos.texto}>
+              Fecha:{" "}
+              {new Date(visita.fecha).toLocaleString("es-AR", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+                timeZone: "America/Argentina/Cordoba",
+             })}
+            </Text>
 
             <Text style={estilos.texto}>
               Método de registro: {visita.metodo}

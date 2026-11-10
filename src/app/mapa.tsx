@@ -28,8 +28,11 @@ import type { Lugar } from "@/tipos/lugar";
 
 export default function MapaScreen() {
   const [ubicacion, setUbicacion] = useState<LocationObjectCoords | null>(null);
+  const [ubicacionCargando, setUbicacionCargando] = useState(true);
   const [lugares, setLugares] = useState<Lugar[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [errorCategorias, setErrorCategorias] = useState("");
+  const [intentoCarga, setIntentoCarga] = useState(0);
   const [error, setError] = useState("");
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<
@@ -49,15 +52,47 @@ export default function MapaScreen() {
   useEffect(() => {
     let activo = true;
 
+    setCargando(true);
+    setError("");
+
     obtenerLugares()
       .then((respuesta) => {
-        if (activo) setLugares(respuesta.datos);
+        if (activo) {
+          setLugares(respuesta.datos);
+        }
       })
       .catch(() => {
-        if (activo) setError("No se pudieron cargar los lugares.");
+        if (activo) {
+          setError(
+            "No se pudieron cargar los lugares turísticos. Verificá tu conexión e intentá nuevamente.",
+          );
+        }
       })
       .finally(() => {
-        if (activo) setCargando(false);
+        if (activo) {
+          setCargando(false);
+        }
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, [intentoCarga]);
+
+  //Segundo useefect solicita el permiso y obtiene la ubicacion del turista
+  useEffect(() => {
+    let activo = true;
+
+    obtenerUbicacionActual()
+      .then((coordenadas) => {
+        if (activo) {
+          setUbicacion(coordenadas);
+        }
+      })
+      .finally(() => {
+        if (activo) {
+          setUbicacionCargando(false);
+        }
       });
 
     return () => {
@@ -65,23 +100,10 @@ export default function MapaScreen() {
     };
   }, []);
 
-  //Segundo useefect solicita el permiso y obtiene la ubicacion del turista
   useEffect(() => {
     let activo = true;
 
-    obtenerUbicacionActual().then((coordenadas) => {
-      if (activo) {
-        setUbicacion(coordenadas);
-      }
-    });
-
-    return () => {
-      activo = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let activo = true;
+    setErrorCategorias("");
 
     obtenerCategorias()
       .then((respuesta) => {
@@ -89,14 +111,18 @@ export default function MapaScreen() {
           setCategorias([...respuesta.datos].sort((a, b) => a.orden - b.orden));
         }
       })
-      .catch((error) => {
-        console.warn("No se pudieron cargar las categorías", error);
+      .catch(() => {
+        if (activo) {
+          setErrorCategorias(
+            "No se pudieron cargar las categorías. Podés seguir viendo todos los lugares.",
+          );
+        }
       });
 
     return () => {
       activo = false;
     };
-  }, []);
+  }, [intentoCarga]);
 
   const lugaresFiltrados = lugares.filter((lugar) => {
     return (
@@ -241,6 +267,19 @@ export default function MapaScreen() {
         ))}
       </ScrollView>
 
+      {errorCategorias !== "" && (
+        <Text style={styles.mensajeCercanos}>{errorCategorias}</Text>
+      )}
+
+      {(error !== "" || errorCategorias !== "") && (
+        <Pressable
+          style={styles.botonCercanos}
+          onPress={() => setIntentoCarga((anterior) => anterior + 1)}
+        >
+          <Text style={styles.textoBotonCercanos}>Reintentar carga</Text>
+        </Pressable>
+      )}
+
       <Pressable
         style={styles.botonCercanos}
         onPress={() => setMostrarCercanos(!mostrarCercanos)}
@@ -252,14 +291,24 @@ export default function MapaScreen() {
 
       {mostrarCercanos && (
         <View style={styles.contenedorCercanos}>
-          {!coordenadasTurista ? (
+          {cargando ? (
             <Text style={styles.mensajeCercanos}>
-              No se pudo obtener tu ubicación para calcular los lugares
-              cercanos.
+              Cargando lugares turísticos...
             </Text>
-          ) : lugaresCercanos.length === 0 ? (
+          ) : error ? (
+            <Text style={styles.mensajeCercanos}>{error}</Text>
+          ) : lugaresFiltrados.length === 0 ? (
             <Text style={styles.mensajeCercanos}>
               No hay lugares disponibles para este filtro.
+            </Text>
+          ) : ubicacionCargando ? (
+            <Text style={styles.mensajeCercanos}>
+              Obteniendo tu ubicación...
+            </Text>
+          ) : !coordenadasTurista ? (
+            <Text style={styles.mensajeCercanos}>
+              No se pudo obtener tu ubicación. Verificá los permisos y los
+              servicios de ubicación.
             </Text>
           ) : (
             <ScrollView style={styles.listaCercanos} nestedScrollEnabled>
@@ -285,6 +334,15 @@ export default function MapaScreen() {
           )}
         </View>
       )}
+
+      {!cargando &&
+        !error &&
+        lugares.length > 0 &&
+        lugaresFiltrados.length === 0 && (
+          <Text style={styles.mensajeCercanos}>
+            No hay lugares turísticos disponibles para esta categoría.
+          </Text>
+        )}
 
       {cargando ? (
         <Text>Cargando lugares...</Text>

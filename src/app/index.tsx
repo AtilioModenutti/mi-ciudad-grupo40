@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -26,6 +26,8 @@ import {
   obtenerBiometriaHabilitada,
 } from "@/servicios/preferencias-biometria";
 
+import * as Network from "expo-network";
+
 export default function Inicio() {
   const [lugares, setLugares] = useState<Lugar[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -36,8 +38,15 @@ export default function Inicio() {
   const [error, setError] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [soloFavoritos, setSoloFavoritos] = useState(false);
-  const { favoritos, cambiarFavorito, favoritosListos, errorFavoritos } =
-    useFavoritos();
+  const {
+    favoritos,
+    cambiarFavorito,
+    favoritosListos,
+    favoritosEnProceso,
+    errorFavoritos,
+    reintentarFavoritos,
+    favoritosSoloLectura,
+  } = useFavoritos();
 
   const {
     usuario,
@@ -54,6 +63,17 @@ export default function Inicio() {
   const [preferenciaLista, setPreferenciaLista] = useState(false);
   const [guardandoPreferencia, setGuardandoPreferencia] = useState(false);
   const usuarioId = usuario?.id;
+
+  const estadoRed = Network.useNetworkState();
+
+  const sinConexion =
+    estadoRed.isConnected === false || estadoRed.isInternetReachable === false;
+
+  const [desdeCache, setDesdeCache] = useState(false);
+  const [recargaCatalogo, setRecargaCatalogo] = useState(0);
+  const [errorCategorias, setErrorCategorias] = useState("");
+
+  const estuvoSinConexion = useRef(false);
 
   useEffect(() => {
     let activo = true;
@@ -89,6 +109,15 @@ export default function Inicio() {
       activo = false;
     };
   }, [usuarioId]);
+
+  useEffect(() => {
+    if (sinConexion) {
+      estuvoSinConexion.current = true;
+    } else if (estuvoSinConexion.current) {
+      estuvoSinConexion.current = false;
+      setRecargaCatalogo((actual) => actual + 1);
+    }
+  }, [sinConexion]);
 
   async function cambiarPreferenciaBiometria() {
     if (!usuario || !preferenciaLista || guardandoPreferencia) {
@@ -134,17 +163,50 @@ export default function Inicio() {
   }
 
   useEffect(() => {
-    obtenerLugares()
-      .then((respuesta) => setLugares(respuesta.datos))
-      .catch(() => setError("No se pudieron cargar los lugares."))
-      .finally(() => setCargando(false));
-  }, []);
+    let activo = true;
 
-  useEffect(() => {
-    obtenerCategorias()
-      .then((respuesta) => setCategorias(respuesta.datos))
-      .catch(() => setError("No se pudieron cargar las categorías."));
-  }, []);
+    async function cargarCatalogo() {
+      setCargando(true);
+      setError("");
+
+      const [resultadoLugares, resultadoCategorias] = await Promise.allSettled([
+        obtenerLugares(),
+        obtenerCategorias(),
+      ]);
+
+      if (!activo) {
+        return;
+      }
+
+      if (resultadoLugares.status === "fulfilled") {
+        setLugares(resultadoLugares.value.datos);
+      } else {
+        setError("No se pudieron cargar los lugares.");
+      }
+
+      if (resultadoCategorias.status === "fulfilled") {
+        setCategorias(resultadoCategorias.value.datos);
+        setErrorCategorias("");
+      } else {
+        setErrorCategorias("No se pudieron actualizar las categorías.");
+      }
+
+      setDesdeCache(
+        (resultadoLugares.status === "fulfilled" &&
+          resultadoLugares.value.desdeCache) ||
+          (resultadoCategorias.status === "fulfilled" &&
+            resultadoCategorias.value.desdeCache),
+      );
+
+      setCargando(false);
+    }
+
+    void cargarCatalogo();
+
+    return () => {
+      activo = false;
+    };
+  }, [recargaCatalogo]);
 
   const lugaresFiltrados = lugares.filter((lugar) => {
     const coincideNombre = lugar.nombre
@@ -168,6 +230,27 @@ export default function Inicio() {
     <SafeAreaView style={estilos.pantalla} edges={["top"]}>
       <Text style={estilos.titulo}>Mi Ciudad</Text>
       <Text style={estilos.subtitulo}>Descubrí Colón, Entre Ríos</Text>
+
+      {(sinConexion || desdeCache) && (
+        <View style={estilos.avisoOffline}>
+          <Text style={estilos.textoOffline}>
+            {desdeCache
+              ? "Mostrando información guardada en el dispositivo."
+              : "Sin conexión. Algunas funciones requieren internet."}
+          </Text>
+
+          <Pressable
+            onPress={() => setRecargaCatalogo((actual) => actual + 1)}
+            accessibilityRole="button"
+          >
+            <Text style={estilos.textoIngresar}>Actualizar catálogo</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {errorCategorias !== "" && (
+        <Text style={estilos.textoOffline}>{errorCategorias}</Text>
+      )}
 
       {cargandoSesion ? (
         <Text style={estilos.textoIngresar}>Recuperando sesión...</Text>
@@ -257,39 +340,63 @@ export default function Inicio() {
         onChangeText={setBusqueda}
       ></TextInput>
 
+      {/* Una fila independiente evita que Android reutilice textos al cambiar el filtro. */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ flexGrow: 0, marginBottom: 15 }}
+        removeClippedSubviews={false}
+        style={estilos.contenedorFiltros}
+        contentContainerStyle={estilos.contenidoFiltros}
       >
-        <Pressable
-          style={[
-            estilos.filtro,
-            categoriaSeleccionada === null && estilos.filtroActivo,
-          ]}
-          onPress={() => setCategoriaSeleccionada(null)}
+        <View
+          key={`${categoriaSeleccionada ?? "todos"}-${categorias.length}`}
+          collapsable={false}
+          style={estilos.filaFiltros}
         >
-          <Text
-            style={[
-              categoriaSeleccionada === null && estilos.textoFiltroActivo,
-            ]}
-          >
-            Todos
-          </Text>
-        </Pressable>
-
-        {categorias.map((categoria) => (
           <Pressable
-            key={categoria.id}
             style={[
               estilos.filtro,
-              categoriaSeleccionada === categoria.id && estilos.filtroActivo,
+              categoriaSeleccionada === null && estilos.filtroActivo,
             ]}
-            onPress={() => setCategoriaSeleccionada(categoria.id)}
+            onPress={() => setCategoriaSeleccionada(null)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: categoriaSeleccionada === null }}
           >
-            <Text>{categoria.nombre}</Text>
+            <Text
+              style={[
+                estilos.textoFiltro,
+                categoriaSeleccionada === null && estilos.textoFiltroActivo,
+              ]}
+            >
+              Todos
+            </Text>
           </Pressable>
-        ))}
+
+          {categorias.map((categoria) => (
+            <Pressable
+              key={categoria.id}
+              style={[
+                estilos.filtro,
+                categoriaSeleccionada === categoria.id && estilos.filtroActivo,
+              ]}
+              onPress={() => setCategoriaSeleccionada(categoria.id)}
+              accessibilityRole="button"
+              accessibilityState={{
+                selected: categoriaSeleccionada === categoria.id,
+              }}
+            >
+              <Text
+                style={[
+                  estilos.textoFiltro,
+                  categoriaSeleccionada === categoria.id &&
+                    estilos.textoFiltroActivo,
+                ]}
+              >
+                {categoria.nombre}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </ScrollView>
 
       <Pressable
@@ -311,13 +418,37 @@ export default function Inicio() {
         </Text>
       </Pressable>
 
-      {error || errorFavoritos ? (
-        <Text>{error || errorFavoritos}</Text>
-      ) : cargando || !favoritosListos ? (
+      {errorFavoritos !== "" && (
+        <View style={estilos.avisoFavoritos}>
+          <Text style={estilos.textoAvisoFavoritos}>{errorFavoritos}</Text>
+          <Pressable onPress={reintentarFavoritos} accessibilityRole="button">
+            <Text style={estilos.textoIngresar}>Reintentar favoritos</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {favoritosSoloLectura && favoritosListos && (
+        <View style={estilos.avisoFavoritos}>
+          <Text style={estilos.textoAvisoFavoritos}>
+            Favoritos guardados: solo lectura hasta recuperar conexión.
+          </Text>
+        </View>
+      )}
+
+      {error ? (
+        <Text>{error}</Text>
+      ) : cargando || (!favoritosListos && !sesionBloqueada) ? (
         <ActivityIndicator />
       ) : (
         <FlatList
           data={lugaresFiltrados}
+          removeClippedSubviews={false}
+          extraData={[
+            favoritos,
+            favoritosEnProceso,
+            favoritosSoloLectura,
+            errorFavoritos,
+          ]}
           keyExtractor={(item) => item.id}
           ListEmptyComponent={<Text>No se encontraron lugares.</Text>}
           renderItem={({ item }) => {
@@ -353,8 +484,20 @@ export default function Inicio() {
                 </Pressable>
 
                 <Pressable
-                  style={estilos.botonCorazon}
-                  onPress={() => cambiarFavorito(item.id)}
+                  style={[
+                    estilos.botonCorazon,
+                    (!favoritosListos ||
+                      favoritosEnProceso ||
+                      favoritosSoloLectura ||
+                      errorFavoritos !== "") && { opacity: 0.5 },
+                  ]}
+                  onPress={() => void cambiarFavorito(item.id)}
+                  disabled={
+                    !favoritosListos ||
+                    favoritosEnProceso ||
+                    favoritosSoloLectura ||
+                    errorFavoritos !== ""
+                  }
                   accessibilityRole="button"
                   accessibilityLabel={
                     esFavorito ? "Quitar de favoritos" : "Agregar a favoritos"
@@ -420,12 +563,33 @@ const estilos = StyleSheet.create({
     marginBottom: 20,
     color: "#111111",
   },
+  contenedorFiltros: {
+    height: 50,
+    flexGrow: 0,
+    flexShrink: 0,
+    marginBottom: 15,
+  },
+  contenidoFiltros: {
+    alignItems: "center",
+    paddingRight: 10,
+  },
+  filaFiltros: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 48,
+  },
   filtro: {
-    padding: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderWidth: 1,
     borderColor: "#CCCCCC",
     borderRadius: 8,
     marginRight: 10,
+  },
+  textoFiltro: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#111111",
   },
   filtroActivo: {
     backgroundColor: "#2563EB",
@@ -444,6 +608,16 @@ const estilos = StyleSheet.create({
   textoEscanear: {
     color: "#FFFFFF",
     fontWeight: "bold",
+  },
+  avisoFavoritos: {
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 8,
+    backgroundColor: "#FEF3C7",
+    gap: 8,
+  },
+  textoAvisoFavoritos: {
+    color: "#92400E",
   },
   botonFavoritos: {
     padding: 12,
@@ -511,5 +685,17 @@ const estilos = StyleSheet.create({
   textoCerrarSesion: {
     color: "#B91C1C",
     fontSize: 14,
+  },
+  avisoOffline: {
+    backgroundColor: "#EFF6FF",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 8,
+  },
+  textoOffline: {
+    color: "#1E40AF",
+    fontSize: 14,
+    marginBottom: 8,
   },
 });

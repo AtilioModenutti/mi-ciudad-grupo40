@@ -18,20 +18,46 @@ import type { Lugar } from "../../tipos/lugar";
 
 export default function DetalleLugar() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { favoritos, favoritosListos, cambiarFavorito } = useFavoritos();
+  const {
+    favoritos,
+    favoritosListos,
+    favoritosEnProceso,
+    errorFavoritos,
+    cambiarFavorito,
+    reintentarFavoritos,
+    favoritosSoloLectura,
+  } = useFavoritos();
 
   const [lugar, setLugar] = useState<Lugar | null>(null);
+  const [error, setError] = useState("");
   const [cargando, setCargando] = useState(true);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [indiceImagen, setIndiceImagen] = useState(0);
 
   useEffect(() => {
+    let activo = true;
+    setCargando(true);
+    setError("");
+
     obtenerLugarPorId(id)
       .then((resultado) => {
-        setLugar(resultado);
-        setIndiceImagen(0);
+        if (activo) {
+          setLugar(resultado);
+          setIndiceImagen(0);
+        }
       })
-      .finally(() => setCargando(false));
+      .catch(() => {
+        if (activo) {
+          setError("No se pudo cargar el lugar. Revisá tu conexión.");
+        }
+      })
+      .finally(() => {
+        if (activo) setCargando(false);
+      });
+
+    return () => {
+      activo = false;
+    };
   }, [id]);
 
   useEffect(() => {
@@ -42,6 +68,10 @@ export default function DetalleLugar() {
 
   if (cargando) {
     return <ActivityIndicator />;
+  }
+
+  if (error) {
+    return <Text>{error}</Text>;
   }
 
   if (!lugar) {
@@ -120,8 +150,13 @@ export default function DetalleLugar() {
 
         <Pressable
           style={estilos.botonCorazon}
-          onPress={() => cambiarFavorito(lugar.id)}
-          disabled={!favoritosListos}
+          onPress={() => void cambiarFavorito(lugar.id)}
+          disabled={
+            !favoritosListos ||
+            favoritosEnProceso ||
+            favoritosSoloLectura ||
+            errorFavoritos !== ""
+          }
           accessibilityRole="button"
           accessibilityLabel={
             esFavorito ? "Quitar de favoritos" : "Agregar a favoritos"
@@ -132,6 +167,25 @@ export default function DetalleLugar() {
           </Text>
         </Pressable>
       </View>
+
+      {errorFavoritos !== "" && (
+        <View style={estilos.avisoFavoritos}>
+          <Text>{errorFavoritos}</Text>
+
+          <Pressable onPress={reintentarFavoritos} accessibilityRole="button">
+            <Text style={{ color: "#2563EB" }}>Reintentar favoritos</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {favoritosSoloLectura && favoritosListos && (
+        <View style={estilos.avisoFavoritos}>
+          <Text>
+            Estos favoritos están guardados localmente y no pueden modificarse
+            sin conexión.
+          </Text>
+        </View>
+      )}
 
       <Text
         style={[estilos.categoria, { color: categoria?.color ?? "#666666" }]}
@@ -261,6 +315,13 @@ const estilos = StyleSheet.create({
     alignItems: "center",
     marginBottom: 15,
     gap: 12,
+  },
+  avisoFavoritos: {
+    backgroundColor: "#FEF3C7",
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+    marginBottom: 12,
   },
   botonCorazon: {
     minWidth: 44,

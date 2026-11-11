@@ -1,6 +1,6 @@
 import Storage from "expo-sqlite/kv-store";
 
-const CLAVE_FAVORITOS = "mi-ciudad-favoritos";
+const CLAVE_FAVORITOS = "mi-ciudad-favoritos-api-local-v1";
 
 export async function obtenerFavoritos(): Promise<string[]> {
   const guardados = await Storage.getItem(CLAVE_FAVORITOS);

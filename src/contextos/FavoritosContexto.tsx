@@ -1,18 +1,44 @@
-import { guardarFavoritos, obtenerFavoritos } from "@/servicios/favoritos";
+import { useSesion } from "@/contextos/SesionContexto";
+
 import {
-    createContext,
-    useContext,
-    useEffect,
-    useState,
-    type ReactNode,
+  marcarFavoritoEnLaCuenta,
+  obtenerFavoritosDeLaCuenta,
+  quitarFavoritoDeLaCuenta,
+} from "@/servicios/favoritos-api";
+
+import { guardarFavoritos, obtenerFavoritos } from "@/servicios/favoritos";
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
 } from "react";
-import { Alert } from "react-native";
+
+import * as Network from "expo-network";
+
+import { ErrorHttp } from "@/servicios/api";
+
+import {
+  guardarFavoritosCuentaCache,
+  leerFavoritosCuentaCache,
+} from "@/servicios/cache-favoritos-cuenta";
 
 type FavoritosContextoTipo = {
   favoritos: string[];
-  cambiarFavorito: (id: string) => void;
   favoritosListos: boolean;
+  favoritosEnProceso: boolean;
   errorFavoritos: string;
+  cambiarFavorito: (id: string) => Promise<void>;
+  reintentarFavoritos: () => void;
+  favoritosSoloLectura: boolean;
+};
+
+type ListaFavoritos = {
+  origen: string;
+  ids: string[];
 };
 
 const ContextoFavoritos = createContext<FavoritosContextoTipo | undefined>(
@@ -20,54 +46,224 @@ const ContextoFavoritos = createContext<FavoritosContextoTipo | undefined>(
 );
 
 export function ProveedorFavoritos({ children }: { children: ReactNode }) {
-  const [favoritos, setFavoritos] = useState<string[]>([]);
-  const [favoritosListos, setFavoritosListos] = useState(false);
-  const [errorFavoritos, setErrorFavoritos] = useState("");
+  const { usuario, cargandoSesion, sesionBloqueada } = useSesion();
+
+  const origen =
+    cargandoSesion || sesionBloqueada
+      ? null
+      : usuario
+        ? `usuario:${usuario.id}`
+        : "invitado";
+
+  const [lista, setLista] = useState<ListaFavoritos | null>(null);
+
+  const [error, setError] = useState<{
+    origen: string;
+    mensaje: string;
+  } | null>(null);
+
+  const [favoritosEnProceso, setFavoritosEnProceso] = useState(false);
+  const [numeroRecarga, setNumeroRecarga] = useState(0);
+
+  const operacionEnCurso = useRef(false);
+
+  const favoritos = lista?.origen === origen ? lista.ids : [];
+
+  const favoritosListos = origen !== null && lista?.origen === origen;
+
+  const errorFavoritos = error?.origen === origen ? error.mensaje : "";
+
+  const [soloLecturaOrigen, setSoloLecturaOrigen] = useState<string | null>(
+    null,
+  );
+
+  const estadoRed = Network.useNetworkState();
+
+  const sinConexion =
+    estadoRed.isConnected === false || estadoRed.isInternetReachable === false;
+
+  const favoritosSoloLectura =
+    origen !== null &&
+    origen.startsWith("usuario:") &&
+    (sinConexion || soloLecturaOrigen === origen);
 
   useEffect(() => {
     let activo = true;
 
-    obtenerFavoritos()
-      .then((guardados) => {
-        if (activo) {
-          setFavoritos(guardados);
-          setFavoritosListos(true);
+    setError(null);
+    setLista((actual) => (actual?.origen === origen ? actual : null));
+
+    if (!origen) {
+      return () => {
+        activo = false;
+      };
+    }
+
+    async function cargar() {
+      const esInvitado = origen === "invitado";
+      const usuarioId = esInvitado ? null : origen!.slice("usuario:".length);
+
+      try {
+        if (esInvitado) {
+          const ids = await obtenerFavoritos();
+
+          if (activo) {
+            setLista({ origen: origen!, ids });
+            setSoloLecturaOrigen(null);
+          }
+
+          return;
         }
-      })
-      .catch(() => {
-        if (activo) {
-          setErrorFavoritos("No se pudieron recuperar los favoritos.");
+
+        if (!usuarioId) {
+          throw new Error("No se pudo identificar la cuenta.");
         }
-      });
+
+        if (sinConexion) {
+          const copia = await leerFavoritosCuentaCache(usuarioId);
+
+          if (copia === null) {
+            throw new Error("No hay favoritos guardados.");
+          }
+
+          if (activo) {
+            setLista({ origen: origen!, ids: copia });
+            setSoloLecturaOrigen(origen!);
+          }
+
+          return;
+        }
+
+        const ids = await obtenerFavoritosDeLaCuenta();
+
+        if (activo) {
+          setLista({ origen: origen!, ids });
+          setSoloLecturaOrigen(null);
+        }
+
+        try {
+          await guardarFavoritosCuentaCache(usuarioId, ids);
+        } catch {
+          console.warn("No se pudo guardar la copia de favoritos.");
+        }
+      } catch (fallo) {
+        if (
+          usuarioId &&
+          !(
+            fallo instanceof ErrorHttp &&
+            fallo.estado >= 400 &&
+            fallo.estado < 500
+          )
+        ) {
+          try {
+            const copia = await leerFavoritosCuentaCache(usuarioId);
+
+            if (copia !== null) {
+              if (activo) {
+                setLista({ origen: origen!, ids: copia });
+                setSoloLecturaOrigen(origen!);
+                setError(null);
+              }
+
+              return;
+            }
+          } catch {
+            console.warn("No se pudo leer la copia de favoritos.");
+          }
+        }
+
+        if (activo) {
+          setError({
+            origen: origen!,
+            mensaje: "No se pudieron cargar los favoritos.",
+          });
+
+          setLista({ origen: origen!, ids: [] });
+          setSoloLecturaOrigen(null);
+        }
+      }
+    }
+
+    void cargar();
 
     return () => {
       activo = false;
     };
-  }, []);
+  }, [origen, numeroRecarga, sinConexion]);
 
-  useEffect(() => {
-    if (!favoritosListos) {
+  function reintentarFavoritos() {
+    if (!operacionEnCurso.current) {
+      setNumeroRecarga((actual) => actual + 1);
+    }
+  }
+
+  async function cambiarFavorito(id: string) {
+    if (
+      !origen ||
+      !favoritosListos ||
+      favoritosSoloLectura ||
+      errorFavoritos ||
+      operacionEnCurso.current
+    ) {
       return;
     }
 
-    guardarFavoritos(favoritos).catch(() => {
-      Alert.alert("Error", "No se pudieron guardar los favoritos.");
-    });
-  }, [favoritos, favoritosListos]);
+    operacionEnCurso.current = true;
+    setFavoritosEnProceso(true);
 
-  function cambiarFavorito(id: string) {
-    setFavoritos((actuales) => {
-      if (actuales.includes(id)) {
-        return actuales.filter((favoritoId) => favoritoId !== id);
+    const estabaMarcado = favoritos.includes(id);
+
+    const nuevos = estabaMarcado
+      ? favoritos.filter((favoritoId) => favoritoId !== id)
+      : [...favoritos, id];
+
+    try {
+      if (origen === "invitado") {
+        await guardarFavoritos(nuevos);
+      } else if (estabaMarcado) {
+        await quitarFavoritoDeLaCuenta(id);
+      } else {
+        await marcarFavoritoEnLaCuenta(id);
       }
 
-      return [...actuales, id];
-    });
+      setLista((actual) =>
+        actual?.origen === origen ? { origen, ids: nuevos } : actual,
+      );
+      if (origen !== "invitado") {
+        try {
+          await guardarFavoritosCuentaCache(
+            origen.slice("usuario:".length),
+            nuevos,
+          );
+        } catch {
+          console.warn("No se pudo actualizar la copia de favoritos.");
+        }
+      }
+    } catch (fallo) {
+      setError({
+        origen,
+        mensaje:
+          fallo instanceof Error
+            ? `No se pudo actualizar el favorito: ${fallo.message}`
+            : "No se pudo actualizar el favorito.",
+      });
+    } finally {
+      operacionEnCurso.current = false;
+      setFavoritosEnProceso(false);
+    }
   }
 
   return (
     <ContextoFavoritos.Provider
-      value={{ favoritos, cambiarFavorito, favoritosListos, errorFavoritos }}
+      value={{
+        favoritos,
+        favoritosListos,
+        favoritosEnProceso,
+        errorFavoritos,
+        cambiarFavorito,
+        reintentarFavoritos,
+        favoritosSoloLectura,
+      }}
     >
       {children}
     </ContextoFavoritos.Provider>

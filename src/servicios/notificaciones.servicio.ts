@@ -8,6 +8,7 @@ try {
   if (Platform.OS !== "web") {
     Notifications = require("expo-notifications");
 
+    // Configuración del comportamiento en primer plano
     Notifications?.setNotificationHandler({
       handleNotification: async () => ({
         shouldShowBanner: true,
@@ -18,7 +19,7 @@ try {
     });
   }
 } catch {
-  // Entorno sin soporte nativo directo
+  // Manejo defensivo en entornos restringidos de Expo Go
 }
 
 export const NotificacionesServicio = {
@@ -41,7 +42,7 @@ export const NotificacionesServicio = {
         });
       } catch {
         // En Expo Go Android el proveedor de canales personalizados es null por diseño;
-        // el sistema usará automáticamente el canal por defecto sin interrumpir.
+        // el sistema usará automáticamente el canal por defecto.
       }
     }
 
@@ -63,7 +64,7 @@ export const NotificacionesServicio = {
   },
 
   /**
-   * Programa el recordatorio local para un evento
+   * Programa el recordatorio local para un evento turístico de Colón
    */
   async programarAvisoEvento(
     id: string,
@@ -119,6 +120,9 @@ export const NotificacionesServicio = {
     }
   },
 
+  /**
+   * Cancela una notificación programada a partir de su ID
+   */
   async cancelarRecordatorio(notificationId: string): Promise<void> {
     if (Platform.OS === "web" || !Notifications) return;
     try {
@@ -128,6 +132,9 @@ export const NotificacionesServicio = {
     }
   },
 
+  /**
+   * Listener para reaccionar al toque de la notificación y abrir el evento (Deep Link)
+   */
   suscribirAlToque(alTocar: (ruta: string) => void) {
     if (Platform.OS === "web" || !Notifications) {
       return { remove: () => {} };
@@ -145,6 +152,69 @@ export const NotificacionesServicio = {
       return sub;
     } catch {
       return { remove: () => {} };
+    }
+  },
+
+  /**
+   * Registra el token del dispositivo en la API de la cátedra (POST /dispositivos)
+   */
+  async registrarTokenEnServidor(
+    tokenExpo: string,
+    tokenAuth?: string,
+  ): Promise<boolean> {
+    try {
+      const baseUrl =
+        process.env.EXPO_PUBLIC_API_URL ||
+        "https://api-miciudad.lansdev.com.ar";
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (tokenAuth) {
+        headers["Authorization"] = `Bearer ${tokenAuth}`;
+      }
+
+      const res = await fetch(`${baseUrl}/dispositivos`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ token: tokenExpo }),
+      });
+
+      return res.status === 200 || res.status === 201;
+    } catch (e) {
+      console.warn("No se pudo registrar el dispositivo en el backend:", e);
+      return false;
+    }
+  },
+
+  /**
+   * Elimina el token del dispositivo en la API (DELETE /dispositivos/{tokenExpo})
+   * El Swagger exige código 204 y token codificado para URL.
+   */
+  async eliminarTokenDelServidor(
+    tokenExpo: string,
+    tokenAuth?: string,
+  ): Promise<boolean> {
+    try {
+      const baseUrl =
+        process.env.EXPO_PUBLIC_API_URL ||
+        "https://api-miciudad.lansdev.com.ar";
+      const tokenCodificado = encodeURIComponent(tokenExpo);
+
+      const headers: Record<string, string> = {};
+      if (tokenAuth) {
+        headers["Authorization"] = `Bearer ${tokenAuth}`;
+      }
+
+      const res = await fetch(`${baseUrl}/dispositivos/${tokenCodificado}`, {
+        method: "DELETE",
+        headers,
+      });
+
+      // El Swagger documenta 204 No Content como respuesta exitosa
+      return res.status === 204;
+    } catch (e) {
+      console.warn("No se pudo eliminar el dispositivo en el backend:", e);
+      return false;
     }
   },
 };

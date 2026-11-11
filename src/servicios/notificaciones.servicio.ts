@@ -8,7 +8,6 @@ try {
   if (Platform.OS !== "web") {
     Notifications = require("expo-notifications");
 
-    // Configuración del comportamiento en primer plano
     Notifications?.setNotificationHandler({
       handleNotification: async () => ({
         shouldShowBanner: true,
@@ -46,7 +45,7 @@ export const NotificacionesServicio = {
       }
     }
 
-    // 2. Solicitud y validación real de permisos de notificación
+    // 2. Solicitud y validación de permisos de notificación
     try {
       const { status: existente } = await Notifications.getPermissionsAsync();
       let concedido = existente === "granted";
@@ -64,7 +63,30 @@ export const NotificacionesServicio = {
   },
 
   /**
-   * Programa el recordatorio local para un evento turístico de Colón
+   * Obtiene el token único de Expo Push para este dispositivo físico
+   */
+  async obtenerExpoPushToken(projectId?: string): Promise<string | null> {
+    if (Platform.OS === "web" || !Notifications) return null;
+
+    try {
+      const concedido = await this.inicializarCanalesYPermisos();
+      if (!concedido) return null;
+
+      const tokenData = await Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined,
+      );
+      return tokenData.data;
+    } catch (error) {
+      console.warn(
+        "No se pudo generar el token de Expo en este entorno:",
+        error,
+      );
+      return null;
+    }
+  },
+
+  /**
+   * Programa un recordatorio local para un evento turístico
    */
   async programarAvisoEvento(
     id: string,
@@ -121,7 +143,7 @@ export const NotificacionesServicio = {
   },
 
   /**
-   * Cancela una notificación programada a partir de su ID
+   * Cancela un recordatorio local a partir de su ID
    */
   async cancelarRecordatorio(notificationId: string): Promise<void> {
     if (Platform.OS === "web" || !Notifications) return;
@@ -133,7 +155,7 @@ export const NotificacionesServicio = {
   },
 
   /**
-   * Listener para reaccionar al toque de la notificación y abrir el evento (Deep Link)
+   * Suscribe un callback al toque de la notificación para Deep Linking
    */
   suscribirAlToque(alTocar: (ruta: string) => void) {
     if (Platform.OS === "web" || !Notifications) {
@@ -156,30 +178,33 @@ export const NotificacionesServicio = {
   },
 
   /**
-   * Registra el token del dispositivo en la API de la cátedra (POST /dispositivos)
+   * Registra el token del teléfono en el backend según NOTIFICATIONS.md
+   * POST /dispositivos con { "tokenExpo": "...", "plataforma": "android" }
    */
   async registrarTokenEnServidor(
     tokenExpo: string,
-    tokenAuth?: string,
+    tokenAuth: string,
   ): Promise<boolean> {
     try {
       const baseUrl =
         process.env.EXPO_PUBLIC_API_URL ||
         "https://api-miciudad.lansdev.com.ar";
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (tokenAuth) {
-        headers["Authorization"] = `Bearer ${tokenAuth}`;
-      }
+      const plataforma = Platform.OS === "ios" ? "ios" : "android";
 
       const res = await fetch(`${baseUrl}/dispositivos`, {
         method: "POST",
-        headers,
-        body: JSON.stringify({ token: tokenExpo }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${tokenAuth}`,
+        },
+        body: JSON.stringify({
+          tokenExpo,
+          plataforma,
+        }),
       });
 
-      return res.status === 200 || res.status === 201;
+      // NOTIFICATIONS.md: 201 si es nuevo, 200 si ya existía
+      return res.status === 201 || res.status === 200;
     } catch (e) {
       console.warn("No se pudo registrar el dispositivo en el backend:", e);
       return false;
@@ -187,12 +212,12 @@ export const NotificacionesServicio = {
   },
 
   /**
-   * Elimina el token del dispositivo en la API (DELETE /dispositivos/{tokenExpo})
-   * El Swagger exige código 204 y token codificado para URL.
+   * Elimina el token del teléfono en el backend según NOTIFICATIONS.md
+   * DELETE /dispositivos/{tokenExpo} -> responde 204 No Content
    */
   async eliminarTokenDelServidor(
     tokenExpo: string,
-    tokenAuth?: string,
+    tokenAuth: string,
   ): Promise<boolean> {
     try {
       const baseUrl =
@@ -200,17 +225,14 @@ export const NotificacionesServicio = {
         "https://api-miciudad.lansdev.com.ar";
       const tokenCodificado = encodeURIComponent(tokenExpo);
 
-      const headers: Record<string, string> = {};
-      if (tokenAuth) {
-        headers["Authorization"] = `Bearer ${tokenAuth}`;
-      }
-
       const res = await fetch(`${baseUrl}/dispositivos/${tokenCodificado}`, {
         method: "DELETE",
-        headers,
+        headers: {
+          Authorization: `Bearer ${tokenAuth}`,
+        },
       });
 
-      // El Swagger documenta 204 No Content como respuesta exitosa
+      // NOTIFICATIONS.md: 204 siempre, incluso si no estaba
       return res.status === 204;
     } catch (e) {
       console.warn("No se pudo eliminar el dispositivo en el backend:", e);

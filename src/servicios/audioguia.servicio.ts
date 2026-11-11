@@ -1,59 +1,62 @@
 // src/servicios/audioguia.servicio.ts
 import { MOCK_AUDIOGUIAS } from "@/mocks/eventos.mock";
 import { AudioguiaItem } from "@/tipos/agenda";
-import { File, Paths } from "expo-file-system";
+import { Platform } from "react-native";
+
+let FileSystem: typeof import("expo-file-system") | null = null;
+if (Platform.OS !== "web") {
+  FileSystem = require("expo-file-system");
+}
 
 export const AudioguiaServicio = {
-  /**
-   * Obtiene la lista de audioguías disponibles para los atractivos de Colón
-   */
   async obtenerTodas(): Promise<AudioguiaItem[]> {
     return [...MOCK_AUDIOGUIAS];
   },
 
-  /**
-   * Ruta física persistente dentro del almacenamiento del dispositivo
-   */
-  obtenerRutaLocal(id: string): string {
-    return `${Paths.document}/audioguia_${id}.mp3`;
+  obtenerArchivoLocal(id: string) {
+    if (!FileSystem) return null;
+    return new FileSystem.File(
+      FileSystem.Paths.document,
+      `audioguia_${id}.mp3`,
+    );
   },
 
-  /**
-   * Verifica si el archivo .mp3 ya fue descargado localmente
-   */
+  obtenerRutaLocal(id: string): string {
+    const archivo = this.obtenerArchivoLocal(id);
+    return archivo ? archivo.uri : "";
+  },
+
   async estaDescargado(id: string): Promise<boolean> {
+    if (!FileSystem) return false;
     try {
-      const archivo = new File(this.obtenerRutaLocal(id));
-      return archivo.exists;
+      const archivo = this.obtenerArchivoLocal(id);
+      return archivo ? archivo.exists : false;
     } catch {
       return false;
     }
   },
 
-  /**
-   * Descarga la audioguía usando la API moderna de expo-file-system
-   */
   async descargarParaOffline(item: AudioguiaItem): Promise<string> {
-    const destinoUri = this.obtenerRutaLocal(item.id);
-    const archivoDestino = new File(destinoUri);
+    if (!FileSystem) return item.url;
+
+    const archivoDestino = this.obtenerArchivoLocal(item.id);
+    if (!archivoDestino) return item.url;
 
     if (archivoDestino.exists) {
       return archivoDestino.uri;
     }
 
-    const archivoDescargado = await File.downloadFileAsync(
+    const descargado = await FileSystem.File.downloadFileAsync(
       item.url,
       archivoDestino,
     );
-    return archivoDescargado.uri;
+    return descargado.uri;
   },
 
-  /**
-   * Elimina la copia local de la memoria
-   */
   async eliminarDescarga(id: string): Promise<void> {
-    const archivo = new File(this.obtenerRutaLocal(id));
-    if (archivo.exists) {
+    if (!FileSystem) return;
+    const archivo = this.obtenerArchivoLocal(id);
+    if (archivo && archivo.exists) {
       await archivo.delete();
     }
   },

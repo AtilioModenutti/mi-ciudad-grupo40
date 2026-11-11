@@ -1,7 +1,9 @@
 // src/servicios/notificaciones.servicio.ts
+import Storage from "expo-sqlite/kv-store";
 import { Platform } from "react-native";
 
 export const CANAL_EVENTOS_ID = "canal-eventos-colon";
+const PREFIJO_NOTIF_STORAGE = "notif_evento_";
 
 let Notifications: typeof import("expo-notifications") | null = null;
 try {
@@ -17,19 +19,12 @@ try {
       }),
     });
   }
-} catch {
-  // Manejo defensivo en entornos restringidos de Expo Go
-}
+} catch {}
 
 export const NotificacionesServicio = {
-  /**
-   * Configura canales de Android y solicita permisos de ejecución.
-   * Aísla la creación del canal para que no aborte en Expo Go.
-   */
   async inicializarCanalesYPermisos(): Promise<boolean> {
     if (Platform.OS === "web" || !Notifications) return false;
 
-    // 1. Intento aislado de configurar el canal en Android
     if (Platform.OS === "android") {
       try {
         await Notifications.setNotificationChannelAsync(CANAL_EVENTOS_ID, {
@@ -39,13 +34,9 @@ export const NotificacionesServicio = {
           lightColor: "#0B3A5D",
           sound: "default",
         });
-      } catch {
-        // En Expo Go Android el proveedor de canales personalizados es null por diseño;
-        // el sistema usará automáticamente el canal por defecto.
-      }
+      } catch {}
     }
 
-    // 2. Solicitud y validación de permisos de notificación
     try {
       const { status: existente } = await Notifications.getPermissionsAsync();
       let concedido = existente === "granted";
@@ -56,49 +47,57 @@ export const NotificacionesServicio = {
       }
 
       return concedido;
-    } catch (error) {
-      console.warn("No se pudo consultar el permiso de notificaciones:", error);
+    } catch {
       return false;
     }
   },
 
   /**
-   * Obtiene el token único de Expo Push para este dispositivo físico
+   * Obtiene el ID de notificación guardado para un evento
    */
-  async obtenerExpoPushToken(projectId?: string): Promise<string | null> {
-    if (Platform.OS === "web" || !Notifications) return null;
-
+  async obtenerIdNotificacionGuardada(
+    eventoId: string,
+  ): Promise<string | null> {
+    if (Platform.OS === "web") return null;
     try {
-      const concedido = await this.inicializarCanalesYPermisos();
-      if (!concedido) return null;
-
-      const tokenData = await Notifications.getExpoPushTokenAsync(
-        projectId ? { projectId } : undefined,
-      );
-      return tokenData.data;
-    } catch (error) {
-      console.warn(
-        "No se pudo generar el token de Expo en este entorno:",
-        error,
-      );
+      return await Storage.getItem(`${PREFIJO_NOTIF_STORAGE}${eventoId}`);
+    } catch {
       return null;
     }
   },
 
   /**
-   * Programa un recordatorio local para un evento turístico
+   * Programa recordatorio impidiendo avisos atrasados o para eventos cancelados
    */
   async programarAvisoEvento(
     id: string,
     titulo: string,
     fechaInicioIso: string,
+    estado: string,
   ): Promise<string | null> {
+    // 1. REGLA: No programar avisos para eventos cancelados o finalizados
+    if (estado === "cancelado" || estado === "finalizado") {
+      console.warn(
+        "No se puede programar aviso: el evento está cancelado o finalizado.",
+      );
+      return null;
+    }
+
+    const fechaEvento = new Date(fechaInicioIso);
+    const ahora = new Date();
+
+    // 2. REGLA: No programar avisos para eventos que ya terminaron o pasaron
+    if (fechaEvento.getTime() < ahora.getTime()) {
+      console.warn("No se puede programar aviso: la fecha del evento ya pasó.");
+      return null;
+    }
+
     const idAviso = `aviso-${id}-${Date.now()}`;
 
     if (Platform.OS === "web" || !Notifications) {
-      console.log(
-        `[Aviso Local Simulado] Para "${titulo}" en ${fechaInicioIso}`,
-      );
+      if (Platform.OS !== "web") {
+        await Storage.setItem(`${PREFIJO_NOTIF_STORAGE}${id}`, idAviso);
+      }
       return idAviso;
     }
 
@@ -106,19 +105,15 @@ export const NotificacionesServicio = {
       const tienePermiso = await this.inicializarCanalesYPermisos();
       if (!tienePermiso) return null;
 
-      const fechaEvento = new Date(fechaInicioIso);
-      const ahora = new Date();
-      const fechaDisparo = new Date(fechaEvento.getTime() - 60 * 60 * 1000);
+      // Programar 2 horas antes del inicio
+      const fechaDisparo = new Date(fechaEvento.getTime() - 2 * 60 * 60 * 1000);
       const disparoInmediato = fechaDisparo <= ahora;
 
       const notifId = await Notifications.scheduleNotificationAsync({
         content: {
           title: "🔔 Recordatorio de Evento en Colón",
           body: `Pronto comenzará: ${titulo}`,
-          data: {
-            ruta: `/evento/${id}`,
-            eventoId: id,
-          },
+          data: { ruta: `/evento/${id}`, eventoId: id },
           sound: true,
         },
         trigger: disparoInmediato
@@ -132,31 +127,32 @@ export const NotificacionesServicio = {
             },
       });
 
+      // Guardamos la asociación en almacenamiento persistente
+      await Storage.setItem(`${PREFIJO_NOTIF_STORAGE}${id}`, notifId);
       return notifId;
-    } catch (err) {
-      console.warn(
-        "Aviso registrado con identificador local de respaldo:",
-        err,
-      );
+    } catch {
+      await Storage.setItem(`${PREFIJO_NOTIF_STORAGE}${id}`, idAviso);
       return idAviso;
     }
   },
 
   /**
-   * Cancela un recordatorio local a partir de su ID
+   * Cancela el recordatorio y borra el registro persistente
    */
-  async cancelarRecordatorio(notificationId: string): Promise<void> {
-    if (Platform.OS === "web" || !Notifications) return;
+  async cancelarRecordatorio(eventoId: string): Promise<void> {
+    if (Platform.OS === "web") return;
+
     try {
-      await Notifications.cancelScheduledNotificationAsync(notificationId);
+      const notifId = await this.obtenerIdNotificacionGuardada(eventoId);
+      if (notifId && Notifications) {
+        await Notifications.cancelScheduledNotificationAsync(notifId);
+      }
+      await Storage.removeItem(`${PREFIJO_NOTIF_STORAGE}${eventoId}`);
     } catch (e) {
       console.warn("Error al cancelar recordatorio:", e);
     }
   },
 
-  /**
-   * Suscribe un callback al toque de la notificación para Deep Linking
-   */
   suscribirAlToque(alTocar: (ruta: string) => void) {
     if (Platform.OS === "web" || !Notifications) {
       return { remove: () => {} };
@@ -166,77 +162,12 @@ export const NotificacionesServicio = {
       const sub = Notifications.addNotificationResponseReceivedListener(
         (respuesta) => {
           const ruta = respuesta.notification.request.content.data?.ruta;
-          if (typeof ruta === "string") {
-            alTocar(ruta);
-          }
+          if (typeof ruta === "string") alTocar(ruta);
         },
       );
       return sub;
     } catch {
       return { remove: () => {} };
-    }
-  },
-
-  /**
-   * Registra el token del teléfono en el backend según NOTIFICATIONS.md
-   * POST /dispositivos con { "tokenExpo": "...", "plataforma": "android" }
-   */
-  async registrarTokenEnServidor(
-    tokenExpo: string,
-    tokenAuth: string,
-  ): Promise<boolean> {
-    try {
-      const baseUrl =
-        process.env.EXPO_PUBLIC_API_URL ||
-        "https://api-miciudad.lansdev.com.ar";
-      const plataforma = Platform.OS === "ios" ? "ios" : "android";
-
-      const res = await fetch(`${baseUrl}/dispositivos`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${tokenAuth}`,
-        },
-        body: JSON.stringify({
-          tokenExpo,
-          plataforma,
-        }),
-      });
-
-      // NOTIFICATIONS.md: 201 si es nuevo, 200 si ya existía
-      return res.status === 201 || res.status === 200;
-    } catch (e) {
-      console.warn("No se pudo registrar el dispositivo en el backend:", e);
-      return false;
-    }
-  },
-
-  /**
-   * Elimina el token del teléfono en el backend según NOTIFICATIONS.md
-   * DELETE /dispositivos/{tokenExpo} -> responde 204 No Content
-   */
-  async eliminarTokenDelServidor(
-    tokenExpo: string,
-    tokenAuth: string,
-  ): Promise<boolean> {
-    try {
-      const baseUrl =
-        process.env.EXPO_PUBLIC_API_URL ||
-        "https://api-miciudad.lansdev.com.ar";
-      const tokenCodificado = encodeURIComponent(tokenExpo);
-
-      const res = await fetch(`${baseUrl}/dispositivos/${tokenCodificado}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${tokenAuth}`,
-        },
-      });
-
-      // NOTIFICATIONS.md: 204 siempre, incluso si no estaba
-      return res.status === 204;
-    } catch (e) {
-      console.warn("No se pudo eliminar el dispositivo en el backend:", e);
-      return false;
     }
   },
 };

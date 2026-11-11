@@ -36,13 +36,18 @@ export default function DetalleEventoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [evento, setEvento] = useState<Evento | null>(null);
   const [cargando, setCargando] = useState(true);
-  const [idNotificacion, setIdNotificacion] = useState<string | null>(null);
+  const [guardado, setGuardado] = useState(false);
 
   useEffect(() => {
     async function cargar() {
       if (!id) return;
       const datos = await AgendaServicio.obtenerEventoPorId(id);
       setEvento(datos);
+
+      // Verificamos si este evento ya estaba guardado en la cuenta / persistencia
+      const yaGuardado = await AgendaServicio.estaEventoGuardado(id);
+      setGuardado(yaGuardado);
+
       setCargando(false);
     }
     cargar();
@@ -51,32 +56,49 @@ export default function DetalleEventoScreen() {
   const alternarRecordatorio = async () => {
     if (!evento) return;
 
-    if (idNotificacion) {
-      // Cancelar recordatorio existente
-      await NotificacionesServicio.cancelarRecordatorio(idNotificacion);
-      setIdNotificacion(null);
+    // Regla: no permitir agendar eventos cancelados o pasados
+    if (evento.estado === "cancelado" || evento.estado === "finalizado") {
+      Alert.alert(
+        "Aviso no disponible",
+        `Este evento está ${evento.estado}. No es posible activar recordatorios.`,
+      );
+      return;
+    }
+
+    if (new Date(evento.inicio).getTime() < Date.now()) {
+      Alert.alert("Evento finalizado", "Este evento ya tuvo lugar.");
+      return;
+    }
+
+    if (guardado) {
+      // Quitar recordatorio y desvincular de /yo/eventos-guardados
+      await NotificacionesServicio.cancelarRecordatorio(evento.id);
+      await AgendaServicio.quitarEventoGuardado(evento.id);
+      setGuardado(false);
       Alert.alert(
         "Recordatorio cancelado",
-        "Ya no recibirás alertas de este evento.",
+        "Se quitó el evento de tus guardados.",
       );
     } else {
-      // Programar recordatorio real
+      // Programar recordatorio local persistente
       const notifId = await NotificacionesServicio.programarAvisoEvento(
         evento.id,
         evento.titulo,
         evento.inicio,
+        evento.estado,
       );
 
       if (notifId) {
-        setIdNotificacion(notifId);
+        await AgendaServicio.guardarEvento(evento.id);
+        setGuardado(true);
         Alert.alert(
-          "🔔 Recordatorio activado",
-          `Se programó un aviso para "${evento.titulo}". Si el inicio es próximo, recibirás una notificación de prueba en 5 segundos.`,
+          "🔔 Evento guardado",
+          `Se guardó "${evento.titulo}" en tu agenda y se programó el recordatorio.`,
         );
       } else {
         Alert.alert(
-          "Permiso denegado",
-          "Debes habilitar los permisos de notificaciones en los ajustes de tu dispositivo.",
+          "Permiso necesario",
+          "Debes habilitar los permisos de notificación en los ajustes de tu teléfono.",
         );
       }
     }
@@ -104,6 +126,11 @@ export default function DetalleEventoScreen() {
     evento.precio === 0
       ? "Entrada libre y gratuita"
       : `$ ${evento.precio?.toLocaleString("es-AR")}`;
+
+  const esNoProgramable =
+    evento.estado === "cancelado" ||
+    evento.estado === "finalizado" ||
+    new Date(evento.inicio).getTime() < Date.now();
 
   return (
     <>
@@ -167,15 +194,21 @@ export default function DetalleEventoScreen() {
           <Text style={styles.subtitulo}>Descripción</Text>
           <Text style={styles.descripcion}>{evento.descripcion}</Text>
 
-          {/* Botón funcional de recordatorio */}
+          {/* Botón con validación de estado */}
           <Pressable
-            style={[styles.boton, idNotificacion ? styles.botonActivo : null]}
+            style={[
+              styles.boton,
+              guardado ? styles.botonActivo : null,
+              esNoProgramable && !guardado ? styles.botonDeshabilitado : null,
+            ]}
             onPress={alternarRecordatorio}
           >
             <Text style={styles.botonTexto}>
-              {idNotificacion
-                ? "✓ Recordatorio activado (Tocar para cancelar)"
-                : "🔔 Activar recordatorio"}
+              {guardado
+                ? "✓ En tu agenda (Tocar para quitar)"
+                : esNoProgramable
+                  ? `Evento ${evento.estado} (No disponible)`
+                  : "🔔 Guardar y activar recordatorio"}
             </Text>
           </Pressable>
         </View>
@@ -243,6 +276,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   botonActivo: { backgroundColor: "#137333" },
+  botonDeshabilitado: { backgroundColor: "#94A3B8" },
   botonTexto: { color: "#FFFFFF", fontWeight: "bold", fontSize: 15 },
   error: { fontSize: 16, color: "#DC2626" },
 });

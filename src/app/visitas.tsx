@@ -1,7 +1,14 @@
 import * as Network from "expo-network";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { obtenerLugarPorId } from "../servicios/lugares";
 import { obtenerVisitas } from "../servicios/visitas";
 import type { Visita } from "../tipos/visita";
@@ -100,6 +107,24 @@ export default function Visitas() {
             {visita.nota && (
               <Text style={estilos.texto}>Nota: {visita.nota}</Text>
             )}
+            {visita.fotos.map((foto) => (
+              <Image
+                key={foto}
+                source={{ uri: foto }}
+                style={estilos.fotoVisita}
+              />
+            ))}
+            <Pressable
+              style={estilos.botonFoto}
+              onPress={() =>
+                router.push({
+                  pathname: "/foto-visita",
+                  params: { visitaId: visita.id },
+                })
+              }
+            >
+              <Text style={estilos.textoBotonFoto}>Agregar fotografía</Text>
+            </Pressable>
           </View>
         ))
       )}
@@ -156,9 +181,28 @@ const estilos = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
+  fotoVisita: {
+    width: "100%",
+    height: 180,
+    borderRadius: 8,
+    marginTop: 12,
+  },
   textoBoton: {
     color: "#FFFFFF",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  botonFoto: {
+    marginTop: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#2563EB",
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  textoBotonFoto: {
+    color: "#2563EB",
+    fontWeight: "bold",
+    fontSize: 15,
   },
 });

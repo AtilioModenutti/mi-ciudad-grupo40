@@ -1,18 +1,39 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { ProveedorSesion } from "@/contextos/SesionContexto";
+import { Stack } from "expo-router";
+import { Platform } from "react-native";
+import { KeyboardProvider } from "react-native-keyboard-controller";
+import { ProveedorFavoritos } from "../contextos/FavoritosContexto";
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
-
-SplashScreen.preventAutoHideAsync();
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <KeyboardProvider statusBarTranslucent={true}>
+      <ProveedorSesion>
+        <ProveedorFavoritos>
+          <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="mapa" options={{ title: "Mapa turístico" }} />
+
+            <Stack.Screen
+              name="lugar/[id]"
+              options={{ title: "Detalle del lugar" }}
+            />
+
+            <Stack.Screen name="escanear" options={{ title: "Escanear QR" }} />
+
+            <Stack.Screen name="ingresar" options={{ title: "Ingresar" }} />
+
+            <Stack.Screen
+              name="registrarse"
+              options={{
+                title: "Registrarse",
+                ...(Platform.OS === "android"
+                  ? { unstable_headerInsets: { top: false } }
+                  : {}),
+              }}
+            />
+          </Stack>
+        </ProveedorFavoritos>
+      </ProveedorSesion>
+    </KeyboardProvider>
   );
 }

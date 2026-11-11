@@ -17,7 +17,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.grupo40.miciudad"
     },
     "web": {
       "output": "static",
@@ -32,11 +33,41 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      "expo-image",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Mi Ciudad utiliza la cámara para leer códigos QR turísticos.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ],
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Mi Ciudad utiliza tu ubicación para mostrar los lugares turísticos cercanos."
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Mi Ciudad utiliza Face ID/Huella para verificar tu identidad al reingresar."
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8bea57e5-1862-4c69-abca-63217b497438"
+      }
+    },
+    "owner": "mi-ciudad-grupo40"
   }
 }

@@ -79,6 +79,9 @@ export default function Visitas() {
             <Text style={estilos.texto}>
               Método de registro: {visita.metodo}
             </Text>
+            {visita.nota && (
+              <Text style={estilos.texto}>Nota: {visita.nota}</Text>
+            )}
           </View>
         ))
       )}

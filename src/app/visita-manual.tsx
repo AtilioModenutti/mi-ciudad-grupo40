@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { obtenerLugares } from "../servicios/lugares";
 import { guardarVisitas, obtenerVisitas } from "../servicios/visitas";
@@ -13,6 +13,7 @@ export default function VisitaManual() {
   const [lugarSeleccionado, setLugarSeleccionado] = useState<string | null>(
     null,
   );
+  const [nota, setNota] = useState("");
 
   useEffect(() => {
     async function cargarLugares() {
@@ -34,7 +35,7 @@ export default function VisitaManual() {
       lugarId: lugarSeleccionado,
       fecha: new Date().toISOString(),
       metodo: "manual",
-      nota: null,
+      nota: nota.trim() ? nota.trim() : null,
       fotos: [],
       sincronizada: false,
     };
@@ -50,6 +51,13 @@ export default function VisitaManual() {
       <Text style={estilos.titulo}>Registrar visita manual</Text>
 
       <Text style={estilos.descripcion}>Elegí el lugar que visitaste.</Text>
+      <TextInput
+        style={estilos.campoNota}
+        placeholder="Escribí una nota sobre la visita (opcional)"
+        value={nota}
+        onChangeText={setNota}
+        multiline
+      />
 
       {lugares.map((lugar) => (
         <Pressable
@@ -93,6 +101,17 @@ const estilos = StyleSheet.create({
     fontSize: 16,
     marginBottom: 24,
   },
+  campoNota: {
+    minHeight: 90,
+    borderWidth: 1,
+    borderColor: "#CCCCCC",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    textAlignVertical: "top",
+    marginBottom: 20,
+  },
+
   opcion: {
     padding: 16,
     borderWidth: 1,

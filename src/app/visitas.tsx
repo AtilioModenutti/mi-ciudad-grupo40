@@ -1,3 +1,4 @@
+import * as Network from "expo-network";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -10,6 +11,7 @@ export default function Visitas() {
   const [nombresLugares, setNombresLugares] = useState<Record<string, string>>(
     {},
   );
+  const [conectado, setConectado] = useState<boolean | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -17,6 +19,13 @@ export default function Visitas() {
         try {
           const guardadas = await obtenerVisitas();
           setVisitas(guardadas);
+
+          const estadoRed = await Network.getNetworkStateAsync();
+
+          setConectado(
+            estadoRed.isConnected === true &&
+              estadoRed.isInternetReachable !== false,
+          );
 
           const nombres: Record<string, string> = {};
 
@@ -44,6 +53,15 @@ export default function Visitas() {
 
       <Text style={estilos.descripcion}>
         Registrá y consultá los lugares que visitaste durante tu recorrido.
+      </Text>
+
+      <Text style={estilos.texto}>
+        Estado de conexión:{" "}
+        {conectado === null
+          ? "Comprobando..."
+          : conectado
+            ? "Conectado"
+            : "Sin conexión"}
       </Text>
 
       {visitas.length === 0 ? (

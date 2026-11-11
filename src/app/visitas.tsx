@@ -138,6 +138,12 @@ export default function Visitas() {
       >
         <Text style={estilos.textoBoton}>Registrar visita manualmente</Text>
       </Pressable>
+      <Pressable
+        style={estilos.boton}
+        onPress={() => router.push("/visita-proximidad")}
+      >
+        <Text style={estilos.textoBoton}>Registrar por proximidad</Text>
+      </Pressable>
     </ScrollView>
   );
 }

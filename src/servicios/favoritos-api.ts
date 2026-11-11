@@ -1,10 +1,8 @@
 import {
-    ErrorHttp,
-    type RespuestaLista,
-    type RespuestaUno,
+  ErrorHttp,
+  type RespuestaLista,
+  type RespuestaUno,
 } from "@/servicios/api";
-
-import { obtenerToken } from "@/servicios/sesion";
 
 export type FavoritoApi = {
   id: string;
@@ -14,6 +12,7 @@ export type FavoritoApi = {
 };
 
 async function solicitarFavoritos<T>(
+  token: string,
   ruta: string,
   metodo: "GET" | "PUT" | "DELETE",
 ): Promise<T | null> {
@@ -23,10 +22,8 @@ async function solicitarFavoritos<T>(
     throw new Error("Falta configurar EXPO_PUBLIC_API_URL.");
   }
 
-  const token = await obtenerToken();
-
   if (!token) {
-    throw new Error("No hay una sesión guardada. Ingresá nuevamente.");
+    throw new Error("No hay una sesión activa. Ingresá nuevamente.");
   }
 
   let respuesta: Response;
@@ -52,9 +49,7 @@ async function solicitarFavoritos<T>(
       if (typeof contenido.error?.mensaje === "string") {
         mensaje = contenido.error.mensaje;
       }
-    } catch {
-      // Conservamos el mensaje genérico.
-    }
+    } catch {}
 
     throw new ErrorHttp(respuesta.status, mensaje);
   }
@@ -70,13 +65,16 @@ async function solicitarFavoritos<T>(
   }
 }
 
-export async function obtenerFavoritosDeLaCuenta(): Promise<string[]> {
+export async function obtenerFavoritosDeLaCuenta(
+  token: string,
+): Promise<string[]> {
   const ids: string[] = [];
   const porPagina = 100;
   let pagina = 1;
 
   while (true) {
     const respuesta = await solicitarFavoritos<RespuestaLista<FavoritoApi>>(
+      token,
       `/yo/favoritos?pagina=${pagina}&porPagina=${porPagina}`,
       "GET",
     );
@@ -106,15 +104,23 @@ export async function obtenerFavoritosDeLaCuenta(): Promise<string[]> {
   }
 }
 
-export async function marcarFavoritoEnLaCuenta(lugarId: string): Promise<void> {
+export async function marcarFavoritoEnLaCuenta(
+  lugarId: string,
+  token: string,
+): Promise<void> {
   await solicitarFavoritos<RespuestaUno<FavoritoApi>>(
+    token,
     `/yo/favoritos/${encodeURIComponent(lugarId)}`,
     "PUT",
   );
 }
 
-export async function quitarFavoritoDeLaCuenta(lugarId: string): Promise<void> {
+export async function quitarFavoritoDeLaCuenta(
+  lugarId: string,
+  token: string,
+): Promise<void> {
   await solicitarFavoritos<never>(
+    token,
     `/yo/favoritos/${encodeURIComponent(lugarId)}`,
     "DELETE",
   );

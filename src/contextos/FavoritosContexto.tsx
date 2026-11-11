@@ -46,14 +46,20 @@ const ContextoFavoritos = createContext<FavoritosContextoTipo | undefined>(
 );
 
 export function ProveedorFavoritos({ children }: { children: ReactNode }) {
-  const { usuario, cargandoSesion, sesionBloqueada } = useSesion();
+  const { usuario, tokenSesion, cargandoSesion, sesionBloqueada } = useSesion();
 
   const origen =
     cargandoSesion || sesionBloqueada
       ? null
       : usuario
-        ? `usuario:${usuario.id}`
+        ? tokenSesion
+          ? `usuario:${usuario.id}`
+          : null
         : "invitado";
+
+  const sesionActual = useRef({ origen, tokenSesion });
+
+  sesionActual.current = { origen, tokenSesion };
 
   const [lista, setLista] = useState<ListaFavoritos | null>(null);
 
@@ -134,12 +140,22 @@ export function ProveedorFavoritos({ children }: { children: ReactNode }) {
           return;
         }
 
-        const ids = await obtenerFavoritosDeLaCuenta();
-
-        if (activo) {
-          setLista({ origen: origen!, ids });
-          setSoloLecturaOrigen(null);
+        if (!tokenSesion) {
+          throw new Error("No hay una sesión activa.");
         }
+
+        const ids = await obtenerFavoritosDeLaCuenta(tokenSesion);
+
+        if (!activo) {
+          return;
+        }
+
+        if (!activo) {
+          return;
+        }
+
+        setLista({ origen: origen!, ids });
+        setSoloLecturaOrigen(null);
 
         try {
           await guardarFavoritosCuentaCache(usuarioId, ids);
@@ -189,7 +205,7 @@ export function ProveedorFavoritos({ children }: { children: ReactNode }) {
     return () => {
       activo = false;
     };
-  }, [origen, numeroRecarga, sinConexion]);
+  }, [origen, tokenSesion, numeroRecarga, sinConexion]);
 
   function reintentarFavoritos() {
     if (!operacionEnCurso.current) {
@@ -208,6 +224,13 @@ export function ProveedorFavoritos({ children }: { children: ReactNode }) {
       return;
     }
 
+    const origenOperacion = origen;
+    const tokenOperacion = tokenSesion;
+
+    const sesionSigueIgual = () =>
+      sesionActual.current.origen === origenOperacion &&
+      sesionActual.current.tokenSesion === tokenOperacion;
+
     operacionEnCurso.current = true;
     setFavoritosEnProceso(true);
 
@@ -218,21 +241,34 @@ export function ProveedorFavoritos({ children }: { children: ReactNode }) {
       : [...favoritos, id];
 
     try {
-      if (origen === "invitado") {
+      if (origenOperacion === "invitado") {
         await guardarFavoritos(nuevos);
-      } else if (estabaMarcado) {
-        await quitarFavoritoDeLaCuenta(id);
       } else {
-        await marcarFavoritoEnLaCuenta(id);
+        if (!tokenOperacion) {
+          return;
+        }
+
+        if (estabaMarcado) {
+          await quitarFavoritoDeLaCuenta(id, tokenOperacion);
+        } else {
+          await marcarFavoritoEnLaCuenta(id, tokenOperacion);
+        }
+      }
+
+      if (!sesionSigueIgual()) {
+        return;
       }
 
       setLista((actual) =>
-        actual?.origen === origen ? { origen, ids: nuevos } : actual,
+        actual?.origen === origenOperacion
+          ? { origen: origenOperacion, ids: nuevos }
+          : actual,
       );
-      if (origen !== "invitado") {
+
+      if (origenOperacion !== "invitado") {
         try {
           await guardarFavoritosCuentaCache(
-            origen.slice("usuario:".length),
+            origenOperacion.slice("usuario:".length),
             nuevos,
           );
         } catch {
@@ -240,13 +276,15 @@ export function ProveedorFavoritos({ children }: { children: ReactNode }) {
         }
       }
     } catch (fallo) {
-      setError({
-        origen,
-        mensaje:
-          fallo instanceof Error
-            ? `No se pudo actualizar el favorito: ${fallo.message}`
-            : "No se pudo actualizar el favorito.",
-      });
+      if (sesionSigueIgual()) {
+        setError({
+          origen: origenOperacion,
+          mensaje:
+            fallo instanceof Error
+              ? `No se pudo actualizar el favorito: ${fallo.message}`
+              : "No se pudo actualizar el favorito.",
+        });
+      }
     } finally {
       operacionEnCurso.current = false;
       setFavoritosEnProceso(false);

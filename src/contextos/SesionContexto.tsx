@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -23,6 +24,7 @@ type SesionContextoTipo = {
   cerrarSesion: () => Promise<void>;
   desbloquearSesion: () => Promise<void>;
   actualizarBiometria: (habilitada: boolean) => void;
+  tokenSesion: string | null;
 };
 
 const ContextoSesion = createContext<SesionContextoTipo | undefined>(undefined);
@@ -34,29 +36,38 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
   const [sesionBloqueada, setSesionBloqueada] = useState(false);
   const [verificandoBiometria, setVerificandoBiometria] = useState(false);
   const [biometriaActiva, setBiometriaActiva] = useState(false);
+  const [tokenSesion, setTokenSesion] = useState<string | null>(null);
+  const revisionSesion = useRef(0);
 
   useEffect(() => {
     let activo = true;
+    const revisionInicial = revisionSesion.current;
 
     async function recuperarSesion() {
       try {
         const token = await obtenerToken();
+
         if (!token) {
           return;
         }
 
         const usuarioGuardado = await obtenerUsuarioActual(token);
+
         const requiereBiometria = await obtenerBiometriaHabilitada(
           usuarioGuardado.id,
         );
 
-        if (activo) {
-          setBiometriaActiva(requiereBiometria);
-          setUsuario(requiereBiometria ? null : usuarioGuardado);
-          setSesionBloqueada(requiereBiometria);
+        if (!activo || revisionInicial !== revisionSesion.current) {
+          return;
         }
+
+        setBiometriaActiva(requiereBiometria);
+        setUsuario(requiereBiometria ? null : usuarioGuardado);
+        setTokenSesion(requiereBiometria ? null : token);
+        setSesionBloqueada(requiereBiometria);
+        setErrorSesion("");
       } catch (error) {
-        if (activo) {
+        if (activo && revisionInicial === revisionSesion.current) {
           setErrorSesion(
             error instanceof Error
               ? error.message
@@ -64,13 +75,14 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
           );
         }
       } finally {
-        if (activo) {
+        if (activo && revisionInicial === revisionSesion.current) {
           setCargandoSesion(false);
         }
       }
     }
 
-    recuperarSesion();
+    void recuperarSesion();
+
     return () => {
       activo = false;
     };
@@ -85,7 +97,9 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
         usuario !== null &&
         !verificandoBiometria
       ) {
+        revisionSesion.current += 1;
         setUsuario(null);
+        setTokenSesion(null);
         setSesionBloqueada(true);
       }
     });
@@ -94,25 +108,45 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
   }, [biometriaActiva, usuario, verificandoBiometria]);
 
   async function activarSesion(sesion: SesionApi) {
+    const revision = ++revisionSesion.current;
+
     const requiereBiometria = await obtenerBiometriaHabilitada(
       sesion.usuario.id,
     );
+
     await guardarToken(sesion.token);
+
+    if (revision !== revisionSesion.current) {
+      return;
+    }
+
     setBiometriaActiva(requiereBiometria);
     setUsuario(sesion.usuario);
+    setTokenSesion(sesion.token);
     setSesionBloqueada(false);
+    setCargandoSesion(false);
     setErrorSesion("");
   }
 
   async function cerrarSesion() {
+    const revision = ++revisionSesion.current;
+
     try {
       await eliminarToken();
+
+      if (revision !== revisionSesion.current) {
+        return;
+      }
+
       setUsuario(null);
+      setTokenSesion(null);
       setSesionBloqueada(false);
       setBiometriaActiva(false);
       setErrorSesion("");
     } catch {
-      setErrorSesion("No se pudo cerrar sesión. Intentá nuevamente.");
+      if (revision === revisionSesion.current) {
+        setErrorSesion("No se pudo cerrar sesión. Intentá nuevamente.");
+      }
     }
   }
 
@@ -125,11 +159,18 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
       return;
     }
 
+    const revision = revisionSesion.current;
+
     setVerificandoBiometria(true);
     setErrorSesion("");
 
     try {
       const estado = await comprobarBiometria();
+
+      if (revision !== revisionSesion.current) {
+        return;
+      }
+
       if (estado !== "disponible") {
         setErrorSesion(
           "La biometría no está disponible. Podés ingresar con tu contraseña.",
@@ -138,30 +179,43 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
       }
 
       const correcta = await verificarBiometria();
-      if (!correcta) {
+
+      if (!correcta || revision !== revisionSesion.current) {
         return;
       }
 
       const token = await obtenerToken();
+
+      if (revision !== revisionSesion.current) {
+        return;
+      }
+
       if (!token) {
-        setErrorSesion(
-          "No hay una sesión guardada. Ingresá con tu contraseña.",
-        );
+        setErrorSesion("No hay una sesión guardada.");
+        setTokenSesion(null);
         setSesionBloqueada(false);
         setBiometriaActiva(false);
         return;
       }
 
       const usuarioActual = await obtenerUsuarioActual(token);
+
+      if (revision !== revisionSesion.current) {
+        return;
+      }
+
       setUsuario(usuarioActual);
+      setTokenSesion(token);
       setSesionBloqueada(false);
       setErrorSesion("");
     } catch (error) {
-      setErrorSesion(
-        error instanceof Error
-          ? error.message
-          : "No se pudo desbloquear la sesión.",
-      );
+      if (revision === revisionSesion.current) {
+        setErrorSesion(
+          error instanceof Error
+            ? error.message
+            : "No se pudo desbloquear la sesión.",
+        );
+      }
     } finally {
       setVerificandoBiometria(false);
     }
@@ -179,6 +233,7 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
         cerrarSesion,
         desbloquearSesion,
         actualizarBiometria,
+        tokenSesion,
       }}
     >
       {children}

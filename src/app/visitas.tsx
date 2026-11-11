@@ -1,13 +1,15 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { obtenerLugarPorId } from "../servicios/lugares";
 import { obtenerVisitas } from "../servicios/visitas";
 import type { Visita } from "../tipos/visita";
 
 export default function Visitas() {
   const [visitas, setVisitas] = useState<Visita[]>([]);
-  const [nombresLugares, setNombresLugares] = useState<Record<string, string>>({});
+  const [nombresLugares, setNombresLugares] = useState<Record<string, string>>(
+    {},
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -15,7 +17,7 @@ export default function Visitas() {
         try {
           const guardadas = await obtenerVisitas();
           setVisitas(guardadas);
-          
+
           const nombres: Record<string, string> = {};
 
           for (const visita of guardadas) {
@@ -23,7 +25,7 @@ export default function Visitas() {
             nombres[visita.lugarId] = lugar?.nombre ?? visita.lugarId;
           }
 
-          setNombresLugares(nombres);          
+          setNombresLugares(nombres);
         } catch (error) {
           console.error("Error al cargar las visitas:", error);
         }
@@ -34,7 +36,10 @@ export default function Visitas() {
   );
 
   return (
-    <View style={estilos.contenedor}>
+    <ScrollView
+      style={estilos.scroll}
+      contentContainerStyle={estilos.contenedor}
+    >
       <Text style={estilos.titulo}>Mi recorrido y visitas</Text>
 
       <Text style={estilos.descripcion}>
@@ -68,7 +73,7 @@ export default function Visitas() {
                 minute: "2-digit",
                 hour12: false,
                 timeZone: "America/Argentina/Cordoba",
-             })}
+              })}
             </Text>
 
             <Text style={estilos.texto}>
@@ -81,15 +86,24 @@ export default function Visitas() {
       <Pressable style={estilos.boton} onPress={() => router.push("/escanear")}>
         <Text style={estilos.textoBoton}>Escanear código QR</Text>
       </Pressable>
-    </View>
+      <Pressable
+        style={estilos.boton}
+        onPress={() => router.push("/visita-manual")}
+      >
+        <Text style={estilos.textoBoton}>Registrar visita manualmente</Text>
+      </Pressable>
+    </ScrollView>
   );
 }
 
 const estilos = StyleSheet.create({
-  contenedor: {
+  scroll: {
     flex: 1,
-    padding: 24,
     backgroundColor: "#FFFFFF",
+  },
+  contenedor: {
+    padding: 24,
+    paddingBottom: 50,
   },
   titulo: {
     fontSize: 30,

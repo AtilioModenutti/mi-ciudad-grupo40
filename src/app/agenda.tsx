@@ -1,3 +1,4 @@
+// src/app/agenda.tsx
 import { TarjetaEvento } from "@/components/TarjetaEvento";
 import { AgendaServicio } from "@/servicios/agenda.servicio";
 import { Evento } from "@/tipos/agenda";
@@ -24,7 +25,7 @@ export default function AgendaScreen() {
       setError(null);
       const datos = await AgendaServicio.obtenerEventos();
       setEventos(datos);
-    } catch (err) {
+    } catch {
       setError("No se pudo cargar la agenda. Verifica tu conexión.");
     } finally {
       setCargando(false);
@@ -42,7 +43,6 @@ export default function AgendaScreen() {
   };
 
   const alSeleccionarEvento = (evento: Evento) => {
-    // Navegación imperativa con parámetro tipado
     router.push({
       pathname: "/evento/[id]",
       params: { id: evento.id },
@@ -51,14 +51,16 @@ export default function AgendaScreen() {
 
   return (
     <SafeAreaView style={styles.contenedor} edges={["top"]}>
+      {/* Cabecera limpia */}
       <View style={styles.cabecera}>
         <Text style={styles.subtitulo}>Turismo Colón</Text>
         <Text style={styles.titulo}>Agenda de Eventos</Text>
       </View>
 
+      {/* Contenido principal */}
       {cargando ? (
         <View style={styles.centro}>
-          <ActivityIndicator size="large" color="#0B5394" />
+          <ActivityIndicator size="large" color="#0B3A5D" />
           <Text style={styles.textoCargando}>Cargando eventos...</Text>
         </View>
       ) : error ? (
@@ -77,8 +79,8 @@ export default function AgendaScreen() {
             <RefreshControl
               refreshing={refrescando}
               onRefresh={alRefrescar}
-              colors={["#0B5394"]}
-              tintColor="#0B5394"
+              colors={["#0B3A5D"]}
+              tintColor="#0B3A5D"
             />
           }
           ListEmptyComponent={
@@ -95,14 +97,11 @@ export default function AgendaScreen() {
 }
 
 const styles = StyleSheet.create({
-  contenedor: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-  },
+  contenedor: { flex: 1, backgroundColor: "#F8FAFC" },
   cabecera: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 12,
     backgroundColor: "#F8FAFC",
   },
   subtitulo: {
@@ -112,33 +111,15 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 1,
   },
-  titulo: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
-  listaContenido: {
-    paddingBottom: 24,
-  },
+  titulo: { fontSize: 26, fontWeight: "800", color: "#0F172A" },
+  listaContenido: { paddingBottom: 24 },
   centro: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
   },
-  textoCargando: {
-    marginTop: 12,
-    color: "#64748B",
-    fontSize: 14,
-  },
-  textoError: {
-    color: "#C5221F",
-    fontSize: 15,
-    textAlign: "center",
-  },
-  textoVacio: {
-    color: "#64748B",
-    fontSize: 15,
-    textAlign: "center",
-  },
+  textoCargando: { marginTop: 12, color: "#64748B", fontSize: 14 },
+  textoError: { color: "#C5221F", fontSize: 15, textAlign: "center" },
+  textoVacio: { color: "#64748B", fontSize: 15, textAlign: "center" },
 });

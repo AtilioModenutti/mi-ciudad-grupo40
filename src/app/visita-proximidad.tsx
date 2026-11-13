@@ -21,17 +21,25 @@ export default function VisitaProximidad() {
     try {
       const permiso = await Location.requestForegroundPermissionsAsync();
       if (permiso.status !== "granted") {
-        Alert.alert("Ubicación", "Necesitamos permiso de ubicación para registrar una visita por proximidad.");
+        Alert.alert(
+          "Ubicación",
+          "Necesitamos permiso de ubicación para registrar una visita por proximidad.",
+        );
         return;
       }
-      const posicion = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const posicion = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
       const { datos: lugares } = await obtenerLugares();
       let cercano: Lugar | null = null;
       let distanciaMinima = Infinity;
       for (const lugar of lugares) {
         if (!lugar.activo) continue;
         const distancia = distanceMeters(
-          { latitud: posicion.coords.latitude, longitud: posicion.coords.longitude },
+          {
+            latitud: posicion.coords.latitude,
+            longitud: posicion.coords.longitude,
+          },
           lugar.coordenadas,
         );
         if (distancia < distanciaMinima) {
@@ -40,21 +48,38 @@ export default function VisitaProximidad() {
         }
       }
       if (!cercano || distanciaMinima > RADIO_PROXIMIDAD_METROS) {
-        Alert.alert("Sin lugares cercanos", "No se encontró un lugar turístico dentro de los 200 metros.");
+        Alert.alert(
+          "Sin lugares cercanos",
+          "No se encontró un lugar turístico dentro de los 200 metros.",
+        );
         return;
       }
       await registrarVisita(usuario.id, cercano.id, "gps");
       // La visita ya está guardada; la vibración es opcional si la build no incluye este módulo.
       try {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        await Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success,
+        );
       } catch {
         // No impedir la navegación ni mostrar un error por una vibración no disponible.
       }
-      Alert.alert("Visita registrada", `Registraste una visita a ${cercano.nombre}.`, [
-        { text: "Ver mi recorrido", onPress: () => router.replace("/visitas") },
-      ]);
+      Alert.alert(
+        "Visita registrada",
+        `Registraste una visita a ${cercano.nombre}.`,
+        [
+          {
+            text: "Ver mi recorrido",
+            onPress: () => router.replace("/visitas"),
+          },
+        ],
+      );
     } catch (fallo) {
-      Alert.alert("Visita", fallo instanceof Error ? fallo.message : "No se pudo comprobar la proximidad.");
+      Alert.alert(
+        "Visita",
+        fallo instanceof Error
+          ? fallo.message
+          : "No se pudo comprobar la proximidad.",
+      );
     } finally {
       setComprobando(false);
     }
@@ -63,12 +88,21 @@ export default function VisitaProximidad() {
   return (
     <View style={estilos.contenedor}>
       <Text style={estilos.titulo}>Visita por proximidad</Text>
-      <Text style={estilos.descripcion}>Registrá tu visita cuando estés a menos de 200 metros de un lugar turístico. Se utiliza tu ubicación actual.</Text>
+      <Text style={estilos.descripcion}>
+        Registrá tu visita cuando estés a menos de 200 metros de un lugar
+        turístico. Se utiliza tu ubicación actual.
+      </Text>
       {!usuario || sesionBloqueada ? (
         <Text>Iniciá sesión para registrar visitas.</Text>
       ) : (
-        <Pressable style={[estilos.boton, comprobando && estilos.desactivado]} disabled={comprobando} onPress={() => void comprobar()}>
-          <Text style={estilos.botonTexto}>{comprobando ? "Comprobando ubicación..." : "Comprobar proximidad"}</Text>
+        <Pressable
+          style={[estilos.boton, comprobando && estilos.desactivado]}
+          disabled={comprobando}
+          onPress={() => void comprobar()}
+        >
+          <Text style={estilos.botonTexto}>
+            {comprobando ? "Comprobando ubicación..." : "Comprobar proximidad"}
+          </Text>
         </Pressable>
       )}
     </View>
@@ -76,10 +110,33 @@ export default function VisitaProximidad() {
 }
 
 const estilos = StyleSheet.create({
-  contenedor: { flex: 1, padding: 24, backgroundColor: "#FFFFFF", gap: 18 },
-  titulo: { fontSize: 26, fontWeight: "bold" },
-  descripcion: { fontSize: 16, lineHeight: 24 },
-  boton: { backgroundColor: "#2563EB", borderRadius: 8, alignItems: "center", padding: 16 },
-  botonTexto: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold" },
+  contenedor: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 26,
+    backgroundColor: "#F6F8F5",
+    gap: 17,
+  },
+  titulo: { fontSize: 28, lineHeight: 35, color: "#244344", fontWeight: "800" },
+  descripcion: {
+    fontSize: 17,
+    lineHeight: 25,
+    color: "#526E6A",
+    marginBottom: 4,
+  },
+  boton: {
+    backgroundColor: "#185F65",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 56,
+    paddingHorizontal: 15,
+  },
+  botonTexto: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "800",
+    textAlign: "center",
+  },
   desactivado: { opacity: 0.5 },
 });

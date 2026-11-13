@@ -53,15 +53,18 @@ export default function Ingresar() {
 
   return (
     <KeyboardAwareScrollView
-      style={{ flex: 1, backgroundColor: "#FFFFFF" }}
-      contentContainerStyle={estilos.contenido}
+      style={estilos.pantalla}
+      contentContainerStyle={estilos.areaScroll}
       keyboardShouldPersistTaps="handled"
       bottomOffset={60}
     >
       <View style={estilos.contenido}>
+        <Text style={estilos.marca}>COLÓN · ENTRE RÍOS</Text>
         <Text style={estilos.titulo}>Mi Ciudad</Text>
-        <Text style={estilos.subtitulo}>Ingresá a tu cuenta</Text>
-        <Text style={estilos.etiqueta}>Correo electronico</Text>
+        <Text style={estilos.subtitulo}>
+          Ingresá para guardar tus favoritos y recorridos.
+        </Text>
+        <Text style={estilos.etiqueta}>Correo electrónico</Text>
 
         <TextInput
           style={estilos.input}
@@ -99,11 +102,11 @@ export default function Ingresar() {
           style={estilos.volver}
           onPress={() => router.push("/registrarse")}
         >
-          <Text style={{ color: "#2563EB" }}>¿No tenés cuenta? Registrate</Text>
+          <Text style={estilos.enlace}>¿No tenés cuenta? Registrate</Text>
         </Pressable>
 
         <Pressable style={estilos.volver} onPress={() => router.back()}>
-          <Text>Continuar sin iniciar sesión</Text>
+          <Text style={estilos.textoVolver}>Continuar sin iniciar sesión</Text>
         </Pressable>
       </View>
     </KeyboardAwareScrollView>
@@ -111,60 +114,85 @@ export default function Ingresar() {
 }
 
 const estilos = StyleSheet.create({
+  pantalla: { flex: 1, backgroundColor: "#F6F8F5" },
+  areaScroll: { flexGrow: 1, paddingHorizontal: 18, paddingVertical: 24 },
   contenido: {
-    flexGrow: 1,
-    justifyContent: "flex-start",
-    padding: 24,
-    paddingBottom: 40,
+    gap: 0,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#DFE9E3",
+    paddingHorizontal: 20,
+    paddingVertical: 25,
+  },
+  marca: {
+    color: "#185F65",
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 1,
+    marginBottom: 8,
+    textAlign: "center",
   },
   titulo: {
-    fontSize: 26,
-    fontWeight: "bold",
+    fontSize: 30,
+    fontWeight: "800",
+    color: "#234344",
     textAlign: "center",
     marginBottom: 6,
   },
-
   subtitulo: {
-    fontSize: 15,
-    color: "#64748B",
+    fontSize: 16,
+    lineHeight: 23,
+    color: "#536E6D",
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: 28,
   },
   etiqueta: {
-    fontSize: 14,
-    fontWeight: "bold",
+    fontSize: 16,
+    color: "#294B4B",
+    fontWeight: "700",
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    padding: 14,
-    marginBottom: 20,
+    borderColor: "#C9DBD2",
+    backgroundColor: "#FAFCFA",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    minHeight: 54,
+    marginBottom: 18,
     fontSize: 16,
-    color: "#111111",
+    color: "#243F3F",
   },
   mensaje: {
-    color: "#B45309",
-    marginBottom: 15,
+    color: "#98572D",
+    backgroundColor: "#FFF1E0",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 14,
+    fontSize: 15,
+    lineHeight: 21,
   },
   boton: {
-    backgroundColor: "#2563EB",
-    padding: 15,
-    borderRadius: 8,
+    backgroundColor: "#185F65",
+    minHeight: 52,
+    borderRadius: 12,
     alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
   },
-  textoBoton: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
+  textoBoton: { color: "#FFFFFF", fontWeight: "800", fontSize: 17 },
   volver: {
-    marginTop: 25,
+    marginTop: 14,
+    minHeight: 48,
     alignItems: "center",
+    justifyContent: "center",
   },
-  pantalla: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
+  enlace: {
+    color: "#185F65",
+    fontSize: 16,
+    fontWeight: "700",
+    textAlign: "center",
   },
+  textoVolver: { color: "#536E6D", fontSize: 16, fontWeight: "600" },
 });

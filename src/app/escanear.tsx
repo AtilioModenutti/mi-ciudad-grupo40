@@ -1,17 +1,17 @@
-import type { BarcodeScanningResult } from "expo-camera";
-import { CameraView, useCameraPermissions } from "expo-camera";
-import { router } from "expo-router";
-import * as Haptics from "expo-haptics";
 import { useSesion } from "@/contextos/SesionContexto";
 import { registrarVisita } from "@/servicios/visitas";
+import type { BarcodeScanningResult } from "expo-camera";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import { useState } from "react";
 import {
-    Alert,
-    Linking,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  Alert,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 import { obtenerLugarPorCodigoQr } from "../servicios/lugares";
@@ -35,7 +35,9 @@ export default function Escanear() {
           await registrarVisita(usuario.id, lugar.id, "qr");
           // La visita ya está guardada; la vibración es opcional si la build no incluye este módulo.
           try {
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            await Haptics.notificationAsync(
+              Haptics.NotificationFeedbackType.Success,
+            );
           } catch {
             // No impedir la navegación ni mostrar un error por una vibración no disponible.
           }
@@ -57,12 +59,18 @@ export default function Escanear() {
         );
       }
     } catch (error) {
-      Alert.alert("Error", error instanceof Error ? error.message : "No se pudo comprobar el código.", [
-        {
-          text: "Reintentar",
-          onPress: () => setEscaneado(false),
-        },
-      ]);
+      Alert.alert(
+        "Error",
+        error instanceof Error
+          ? error.message
+          : "No se pudo comprobar el código.",
+        [
+          {
+            text: "Reintentar",
+            onPress: () => setEscaneado(false),
+          },
+        ],
+      );
     }
   }
 
@@ -89,7 +97,7 @@ export default function Escanear() {
         </Pressable>
 
         <Pressable onPress={() => router.back()}>
-          <Text>Volver sin usar la cámara</Text>
+          <Text style={estilos.volver}>Volver sin usar la cámara</Text>
         </Pressable>
       </View>
     );
@@ -114,34 +122,47 @@ export default function Escanear() {
 const estilos = StyleSheet.create({
   contenedor: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 20,
+    backgroundColor: "#F6F8F5",
   },
   centro: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
-    gap: 20,
-    backgroundColor: "#FFFFFF",
+    padding: 22,
+    gap: 22,
+    backgroundColor: "#F6F8F5",
   },
   mensaje: {
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 25,
     textAlign: "center",
-    marginBottom: 15,
+    color: "#294B4A",
+    marginBottom: 17,
+    fontWeight: "600",
   },
   camara: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: 17,
     overflow: "hidden",
+    backgroundColor: "#E2EEE8",
   },
   boton: {
-    padding: 14,
-    backgroundColor: "#2563EB",
-    borderRadius: 8,
+    minHeight: 54,
+    justifyContent: "center",
+    paddingHorizontal: 22,
+    backgroundColor: "#185F65",
+    borderRadius: 12,
+    alignItems: "center",
   },
-  textoBoton: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
+  textoBoton: { fontSize: 17, color: "#FFFFFF", fontWeight: "800" },
+  volver: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#185F65",
+    paddingVertical: 12,
+    textAlign: "center",
   },
 });

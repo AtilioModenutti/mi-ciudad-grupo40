@@ -4,7 +4,9 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -62,6 +64,7 @@ export default function Inicio() {
   const [biometriaHabilitada, setBiometriaHabilitada] = useState(false);
   const [preferenciaLista, setPreferenciaLista] = useState(false);
   const [guardandoPreferencia, setGuardandoPreferencia] = useState(false);
+  const [cuentaExpandida, setCuentaExpandida] = useState(false);
   const usuarioId = usuario?.id;
 
   const estadoRed = Network.useNetworkState();
@@ -226,508 +229,903 @@ export default function Inicio() {
     favoritos.includes(lugar.id),
   ).length;
 
+  const accesos = [
+    {
+      titulo: "Mapa turístico",
+      descripcion: "Ubicá lugares",
+      icono: "🗺️",
+      ruta: "/mapa" as const,
+    },
+    {
+      titulo: "Agenda",
+      descripcion: "Eventos y ferias",
+      icono: "📅",
+      ruta: "/agenda" as const,
+    },
+    {
+      titulo: "Audioguías",
+      descripcion: "Escuchá Colón",
+      icono: "🎧",
+      ruta: "/audioguias" as const,
+    },
+    {
+      titulo: "Mi recorrido",
+      descripcion: "Tus visitas",
+      icono: "👣",
+      ruta: "/visitas" as const,
+    },
+  ];
+
   return (
     <SafeAreaView style={estilos.pantalla} edges={["top"]}>
-      <Text style={estilos.titulo}>Mi Ciudad</Text>
-      <Text style={estilos.subtitulo}>Descubrí Colón, Entre Ríos</Text>
-
-      {(sinConexion || desdeCache) && (
-        <View style={estilos.avisoOffline}>
-          <Text style={estilos.textoOffline}>
-            {desdeCache
-              ? "Mostrando información guardada en el dispositivo."
-              : "Sin conexión. Algunas funciones requieren internet."}
-          </Text>
-
-          <Pressable
-            onPress={() => setRecargaCatalogo((actual) => actual + 1)}
-            accessibilityRole="button"
-          >
-            <Text style={estilos.textoIngresar}>Actualizar catálogo</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {errorCategorias !== "" && (
-        <Text style={estilos.textoOffline}>{errorCategorias}</Text>
-      )}
-
-      {cargandoSesion ? (
-        <Text style={estilos.textoIngresar}>Recuperando sesión...</Text>
-      ) : sesionBloqueada ? (
-        <View style={estilos.resumenSesion}>
-          <Text style={estilos.textoIngresar}>Sesión protegida</Text>
-
-          <Pressable
-            style={estilos.botonBiometria}
-            onPress={desbloquearSesion}
-            disabled={verificandoBiometria}
-            accessibilityRole="button"
-          >
-            <Text style={estilos.textoIngresar}>
-              {verificandoBiometria
-                ? "Verificando..."
-                : "Desbloquear con biometría"}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={estilos.botonBiometria}
-            onPress={() => router.push("/ingresar")}
-            accessibilityRole="button"
-          >
-            <Text style={estilos.textoIngresar}>
-              Ingresar con correo y contraseña
-            </Text>
-          </Pressable>
-        </View>
-      ) : usuario ? (
-        <View style={estilos.resumenSesion}>
-          <Text style={estilos.textoIngresar}>Hola, {usuario.nombre}</Text>
-
-          <Pressable
-            style={estilos.botonCerrarSesion}
-            onPress={cerrarSesion}
-            accessibilityRole="button"
-          >
-            <Text style={estilos.textoCerrarSesion}>Cerrar sesión</Text>
-          </Pressable>
-
-          <Pressable
-            style={[
-              estilos.botonBiometria,
-              (!preferenciaLista || guardandoPreferencia) && { opacity: 0.5 },
-            ]}
-            onPress={cambiarPreferenciaBiometria}
-            disabled={!preferenciaLista || guardandoPreferencia}
-            accessibilityRole="button"
-          >
-            <Text style={estilos.textoIngresar}>
-              {!preferenciaLista
-                ? "Cargando preferencia..."
-                : guardandoPreferencia
-                  ? "Guardando..."
-                  : biometriaHabilitada
-                    ? "Desactivar biometría"
-                    : "Activar biometría"}
-            </Text>
-          </Pressable>
-        </View>
-      ) : (
-        <Pressable
-          style={estilos.botonIngresar}
-          onPress={() => router.push("/ingresar")}
-        >
-          <Text style={estilos.textoIngresar}>Mi cuenta / Ingresar</Text>
-        </Pressable>
-      )}
-
-      {errorSesion !== "" && (
-        <Text style={{ color: "#B45309" }}>{errorSesion}</Text>
-      )}
-
-      <Pressable
-        style={estilos.botonEscanear}
-        onPress={() => router.push("/escanear")}
-      >
-        <Text style={estilos.textoEscanear}>Escanear QR</Text>
-      </Pressable>
-
-      <Pressable
-        style={estilos.botonEscanear}
-        onPress={() => router.push("/mapa")}
-        accessibilityRole="button"
-      >
-        <Text style={estilos.textoEscanear}>Ver mapa turístico</Text>
-      </Pressable>
-
-      <Pressable
-        style={estilos.botonEscanear}
-        onPress={() => router.push("/agenda")}
-        accessibilityRole="button"
-      >
-        <Text style={estilos.textoEscanear}>Agenda de eventos</Text>
-      </Pressable>
-
-      <Pressable
-        style={estilos.botonEscanear}
-        onPress={() => router.push("/audioguias")}
-        accessibilityRole="button"
-      >
-        <Text style={estilos.textoEscanear}>Escuchar audioguías</Text>
-      </Pressable>
-
-      <Pressable
-        style={estilos.botonEscanear}
-        onPress={() => router.push("/visitas")}
-        accessibilityRole="button"
-      >
-        <Text style={estilos.textoEscanear}>Mi recorrido y visitas</Text>
-      </Pressable>
-
-      <TextInput
-        style={estilos.buscador}
-        placeholder="Buscar lugares"
-        value={busqueda}
-        onChangeText={setBusqueda}
-      ></TextInput>
-
-      {/* Una fila independiente evita que Android reutilice textos al cambiar el filtro. */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
+      <FlatList
+        style={estilos.lista}
+        contentContainerStyle={estilos.contenidoLista}
+        data={error ? [] : lugaresFiltrados}
+        keyExtractor={(item) => item.id}
         removeClippedSubviews={false}
-        style={estilos.contenedorFiltros}
-        contentContainerStyle={estilos.contenidoFiltros}
-      >
-        <View
-          key={`${categoriaSeleccionada ?? "todos"}-${categorias.length}`}
-          collapsable={false}
-          style={estilos.filaFiltros}
-        >
-          <Pressable
-            style={[
-              estilos.filtro,
-              categoriaSeleccionada === null && estilos.filtroActivo,
-            ]}
-            onPress={() => setCategoriaSeleccionada(null)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: categoriaSeleccionada === null }}
-          >
-            <Text
-              style={[
-                estilos.textoFiltro,
-                categoriaSeleccionada === null && estilos.textoFiltroActivo,
-              ]}
-            >
-              Todos
-            </Text>
-          </Pressable>
-
-          {categorias.map((categoria) => (
-            <Pressable
-              key={categoria.id}
-              style={[
-                estilos.filtro,
-                categoriaSeleccionada === categoria.id && estilos.filtroActivo,
-              ]}
-              onPress={() => setCategoriaSeleccionada(categoria.id)}
-              accessibilityRole="button"
-              accessibilityState={{
-                selected: categoriaSeleccionada === categoria.id,
-              }}
-            >
-              <Text
-                style={[
-                  estilos.textoFiltro,
-                  categoriaSeleccionada === categoria.id &&
-                    estilos.textoFiltroActivo,
-                ]}
-              >
-                {categoria.nombre}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </ScrollView>
-
-      <Pressable
-        style={[
-          estilos.botonFavoritos,
-          soloFavoritos && estilos.botonFavoritosActivo,
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        extraData={[
+          favoritos,
+          favoritosEnProceso,
+          favoritosSoloLectura,
+          errorFavoritos,
         ]}
-        onPress={() => setSoloFavoritos(!soloFavoritos)}
-      >
-        <Text
-          style={[
-            estilos.textoFavoritos,
-            soloFavoritos && estilos.textoFavoritosActivo,
-          ]}
-        >
-          {soloFavoritos
-            ? "♥ Mostrando favoritos"
-            : `♡ Ver solo favoritos (${cantidadFavoritosVisibles})`}
-        </Text>
-      </Pressable>
+        refreshControl={
+          <RefreshControl
+            refreshing={cargando}
+            onRefresh={() => setRecargaCatalogo((actual) => actual + 1)}
+            colors={["#16666B"]}
+            tintColor="#16666B"
+          />
+        }
+        ListHeaderComponent={
+          <View>
+            {/* Bienvenida turística: corta, para dejar espacio al catálogo. */}
+            <View style={estilos.hero}>
+              <View style={estilos.aroDecorativo} pointerEvents="none" />
+              <Text style={estilos.ubicacion}>📍 COLÓN · ENTRE RÍOS</Text>
+              <Text style={estilos.titulo}>Mi Ciudad</Text>
+              <Text style={estilos.subtitulo}>
+                Descubrí lugares, historias y experiencias para disfrutar.
+              </Text>
+            </View>
 
-      {errorFavoritos !== "" && (
-        <View style={estilos.avisoFavoritos}>
-          <Text style={estilos.textoAvisoFavoritos}>{errorFavoritos}</Text>
-          <Pressable onPress={reintentarFavoritos} accessibilityRole="button">
-            <Text style={estilos.textoIngresar}>Reintentar favoritos</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {favoritosSoloLectura && favoritosListos && (
-        <View style={estilos.avisoFavoritos}>
-          <Text style={estilos.textoAvisoFavoritos}>
-            Favoritos guardados: solo lectura hasta recuperar conexión.
-          </Text>
-        </View>
-      )}
-
-      {error ? (
-        <Text>{error}</Text>
-      ) : cargando || (!favoritosListos && !sesionBloqueada) ? (
-        <ActivityIndicator />
-      ) : (
-        <FlatList
-          data={lugaresFiltrados}
-          removeClippedSubviews={false}
-          extraData={[
-            favoritos,
-            favoritosEnProceso,
-            favoritosSoloLectura,
-            errorFavoritos,
-          ]}
-          keyExtractor={(item) => item.id}
-          ListEmptyComponent={<Text>No se encontraron lugares.</Text>}
-          renderItem={({ item }) => {
-            const categoria = categorias.find(
-              (categoria) => categoria.id === item.categoriaId,
-            );
-
-            const esFavorito = favoritos.includes(item.id);
-
-            return (
-              <View style={estilos.tarjeta}>
+            {/* La cuenta se expande solo cuando el usuario necesita modificarla. */}
+            {cargandoSesion ? (
+              <View style={estilos.cuentaCompacta}>
+                <ActivityIndicator color="#16666B" />
+                <Text style={estilos.textoSecundario}>
+                  Recuperando sesión...
+                </Text>
+              </View>
+            ) : sesionBloqueada ? (
+              <View style={estilos.cuentaCompleta}>
+                <Text style={estilos.cuentaTitulo}>
+                  Tu sesión está protegida
+                </Text>
+                <Text style={estilos.textoSecundario}>
+                  Desbloqueala para acceder a tus datos.
+                </Text>
                 <Pressable
-                  style={estilos.contenidoTarjeta}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/lugar/[id]",
-                      params: { id: item.id },
-                    })
-                  }
+                  style={estilos.botonPrimario}
+                  onPress={desbloquearSesion}
+                  disabled={verificandoBiometria}
+                  accessibilityRole="button"
                 >
-                  <Text
-                    style={[
-                      estilos.nombre,
-                      { color: categoria?.color ?? "#111111" },
-                    ]}
-                  >
-                    {item.nombre}
-                  </Text>
-
-                  <Text style={estilos.descripcionTarjeta}>
-                    {item.descripcionCorta}
+                  <Text style={estilos.botonPrimarioTexto}>
+                    {verificandoBiometria
+                      ? "Verificando..."
+                      : "Desbloquear con biometría"}
                   </Text>
                 </Pressable>
-
                 <Pressable
-                  style={[
-                    estilos.botonCorazon,
-                    (!favoritosListos ||
-                      favoritosEnProceso ||
-                      favoritosSoloLectura ||
-                      errorFavoritos !== "") && { opacity: 0.5 },
-                  ]}
-                  onPress={() => void cambiarFavorito(item.id)}
-                  disabled={
-                    !favoritosListos ||
-                    favoritosEnProceso ||
-                    favoritosSoloLectura ||
-                    errorFavoritos !== ""
-                  }
+                  style={estilos.botonSecundario}
+                  onPress={() => router.push("/ingresar")}
                   accessibilityRole="button"
-                  accessibilityLabel={
-                    esFavorito ? "Quitar de favoritos" : "Agregar a favoritos"
-                  }
                 >
-                  <Text
-                    style={[
-                      estilos.corazon,
-                      esFavorito && estilos.corazonActivo,
-                    ]}
-                  >
-                    {esFavorito ? "♥" : "♡"}
+                  <Text style={estilos.botonSecundarioTexto}>
+                    Ingresar con contraseña
                   </Text>
                 </Pressable>
               </View>
-            );
-          }}
-        />
-      )}
+            ) : usuario ? (
+              <View style={estilos.cuentaCompleta}>
+                <View style={estilos.cuentaFila}>
+                  <View style={estilos.avatar}>
+                    <Text style={estilos.avatarTexto}>
+                      {usuario.nombre?.trim().charAt(0).toUpperCase() || "✓"}
+                    </Text>
+                  </View>
+                  <View style={estilos.cuentaDatos}>
+                    <Text style={estilos.cuentaSaludo}>
+                      ¡Hola, {usuario.nombre}!
+                    </Text>
+                    <Text style={estilos.textoSecundario}>
+                      Tu cuenta de viajero
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={estilos.botonCuenta}
+                    onPress={() => setCuentaExpandida((actual) => !actual)}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      cuentaExpandida
+                        ? "Cerrar opciones de cuenta"
+                        : "Abrir opciones de cuenta"
+                    }
+                    accessibilityState={{ expanded: cuentaExpandida }}
+                  >
+                    <Text style={estilos.botonCuentaTexto}>
+                      {cuentaExpandida ? "Cerrar −" : "Mi cuenta +"}
+                    </Text>
+                  </Pressable>
+                </View>
+                {cuentaExpandida && (
+                  <View style={estilos.opcionesCuenta}>
+                    <Pressable
+                      style={[
+                        estilos.opcionCuenta,
+                        (!preferenciaLista || guardandoPreferencia) &&
+                          estilos.desactivado,
+                      ]}
+                      onPress={cambiarPreferenciaBiometria}
+                      disabled={!preferenciaLista || guardandoPreferencia}
+                      accessibilityRole="button"
+                    >
+                      <Text style={estilos.opcionCuentaTexto}>
+                        {!preferenciaLista
+                          ? "Cargando biometría..."
+                          : guardandoPreferencia
+                            ? "Guardando..."
+                            : biometriaHabilitada
+                              ? "Desactivar acceso biométrico"
+                              : "Activar acceso biométrico"}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={estilos.opcionCuenta}
+                      onPress={cerrarSesion}
+                      accessibilityRole="button"
+                    >
+                      <Text style={estilos.textoCerrarSesion}>
+                        Cerrar sesión
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <Pressable
+                style={estilos.cuentaCompacta}
+                onPress={() => router.push("/ingresar")}
+                accessibilityRole="button"
+                accessibilityLabel="Ingresar a Mi Ciudad"
+              >
+                <View style={estilos.avatar}>
+                  <Text style={estilos.avatarTexto}>👤</Text>
+                </View>
+                <View style={estilos.cuentaDatos}>
+                  <Text style={estilos.cuentaSaludo}>Recorré a tu manera</Text>
+                  <Text style={estilos.textoSecundario}>
+                    Ingresá para guardar tus visitas
+                  </Text>
+                </View>
+                <Text style={estilos.enlaceCuenta}>Ingresar ›</Text>
+              </Pressable>
+            )}
+
+            {errorSesion !== "" && (
+              <View style={estilos.avisoAdvertencia}>
+                <Text style={estilos.textoAdvertencia}>{errorSesion}</Text>
+              </View>
+            )}
+
+            {(sinConexion || desdeCache) && (
+              <View style={estilos.avisoConexion}>
+                <Text style={estilos.textoConexion}>
+                  {desdeCache
+                    ? "📦 Estás viendo información guardada en el teléfono."
+                    : "📶 Sin conexión. Algunas funciones necesitan internet."}
+                </Text>
+                <Pressable
+                  style={estilos.reintentar}
+                  onPress={() => setRecargaCatalogo((actual) => actual + 1)}
+                  accessibilityRole="button"
+                >
+                  <Text style={estilos.reintentarTexto}>
+                    Actualizar catálogo
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+
+            <View style={estilos.cabeceraSeccion}>
+              <Text style={estilos.seccionTitulo}>¿Qué querés hacer?</Text>
+              <Text style={estilos.seccionSubtitulo}>
+                Elegí cómo explorar la ciudad
+              </Text>
+            </View>
+            <View style={estilos.cuadriculaAccesos}>
+              {accesos.map((acceso) => (
+                <Pressable
+                  key={acceso.ruta}
+                  style={estilos.tarjetaAcceso}
+                  onPress={() => router.push(acceso.ruta)}
+                  accessibilityRole="button"
+                  accessibilityLabel={acceso.titulo}
+                >
+                  <Text style={estilos.iconoAcceso}>{acceso.icono}</Text>
+                  <Text style={estilos.tituloAcceso}>{acceso.titulo}</Text>
+                  <Text style={estilos.descripcionAcceso}>
+                    {acceso.descripcion}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={estilos.cabeceraCatalogo}>
+              <View style={estilos.catalogoTituloFila}>
+                <Text style={estilos.seccionTitulo}>Explorar lugares</Text>
+                {!cargando && (
+                  <Text style={estilos.contador}>
+                    {lugaresFiltrados.length}{" "}
+                    {lugaresFiltrados.length === 1 ? "lugar" : "lugares"}
+                  </Text>
+                )}
+              </View>
+              <Text style={estilos.seccionSubtitulo}>
+                Encontrá tu próximo lugar favorito
+              </Text>
+            </View>
+
+            <View style={estilos.buscadorContenedor}>
+              <Text style={estilos.iconoBuscar}>⌕</Text>
+              <TextInput
+                style={estilos.buscador}
+                placeholder="Buscar lugares turísticos"
+                placeholderTextColor="#6F7E80"
+                value={busqueda}
+                onChangeText={setBusqueda}
+                returnKeyType="search"
+                accessibilityLabel="Buscar lugares turísticos"
+              />
+              {busqueda.length > 0 && (
+                <Pressable
+                  style={estilos.limpiarBusqueda}
+                  onPress={() => setBusqueda("")}
+                  accessibilityRole="button"
+                  accessibilityLabel="Limpiar búsqueda"
+                >
+                  <Text style={estilos.limpiarBusquedaTexto}>✕</Text>
+                </Pressable>
+              )}
+            </View>
+
+            {/* Una sola fila horizontal, con las etiquetas siempre visibles en Android. */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              removeClippedSubviews={false}
+              style={estilos.contenedorFiltros}
+              contentContainerStyle={estilos.contenidoFiltros}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View
+                key={`${categoriaSeleccionada ?? "todos"}-${categorias.length}`}
+                collapsable={false}
+                style={estilos.filaFiltros}
+              >
+                <Pressable
+                  style={[
+                    estilos.filtro,
+                    categoriaSeleccionada === null && estilos.filtroActivo,
+                  ]}
+                  onPress={() => setCategoriaSeleccionada(null)}
+                  accessibilityRole="button"
+                  accessibilityState={{
+                    selected: categoriaSeleccionada === null,
+                  }}
+                >
+                  <Text
+                    style={[
+                      estilos.textoFiltro,
+                      categoriaSeleccionada === null &&
+                        estilos.textoFiltroActivo,
+                    ]}
+                  >
+                    Todos
+                  </Text>
+                </Pressable>
+                {categorias.map((categoria) => (
+                  <Pressable
+                    key={categoria.id}
+                    style={[
+                      estilos.filtro,
+                      categoriaSeleccionada === categoria.id &&
+                        estilos.filtroActivo,
+                    ]}
+                    onPress={() => setCategoriaSeleccionada(categoria.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{
+                      selected: categoriaSeleccionada === categoria.id,
+                    }}
+                  >
+                    <Text
+                      style={[
+                        estilos.textoFiltro,
+                        categoriaSeleccionada === categoria.id &&
+                          estilos.textoFiltroActivo,
+                      ]}
+                    >
+                      {categoria.nombre}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+
+            <Pressable
+              style={[
+                estilos.favoritosFiltro,
+                soloFavoritos && estilos.favoritosFiltroActivo,
+              ]}
+              onPress={() => setSoloFavoritos((actual) => !actual)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: soloFavoritos }}
+            >
+              <Text
+                style={[
+                  estilos.favoritosFiltroTexto,
+                  soloFavoritos && estilos.favoritosFiltroTextoActivo,
+                ]}
+              >
+                {soloFavoritos
+                  ? "♥  Mostrando favoritos"
+                  : `♡  Solo mis favoritos (${cantidadFavoritosVisibles})`}
+              </Text>
+            </Pressable>
+
+            {errorCategorias !== "" && (
+              <View style={estilos.avisoAdvertencia}>
+                <Text style={estilos.textoAdvertencia}>{errorCategorias}</Text>
+              </View>
+            )}
+            {errorFavoritos !== "" && (
+              <View style={estilos.avisoAdvertencia}>
+                <Text style={estilos.textoAdvertencia}>{errorFavoritos}</Text>
+                <Pressable
+                  style={estilos.reintentar}
+                  onPress={reintentarFavoritos}
+                  accessibilityRole="button"
+                >
+                  <Text style={estilos.reintentarTexto}>
+                    Reintentar favoritos
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+            {favoritosSoloLectura && favoritosListos && (
+              <View style={estilos.avisoConexion}>
+                <Text style={estilos.textoConexion}>
+                  Tus favoritos están en modo lectura hasta recuperar internet.
+                </Text>
+              </View>
+            )}
+          </View>
+        }
+        ListEmptyComponent={
+          <View style={estilos.estadoVacio}>
+            {error ? (
+              <>
+                <Text style={estilos.estadoVacioTitulo}>
+                  No pudimos cargar los lugares
+                </Text>
+                <Text style={estilos.textoSecundario}>{error}</Text>
+                <Pressable
+                  style={estilos.botonPrimario}
+                  onPress={() => setRecargaCatalogo((actual) => actual + 1)}
+                  accessibilityRole="button"
+                >
+                  <Text style={estilos.botonPrimarioTexto}>
+                    Intentar otra vez
+                  </Text>
+                </Pressable>
+              </>
+            ) : cargando || (!favoritosListos && !sesionBloqueada) ? (
+              <>
+                <ActivityIndicator color="#16666B" size="large" />
+                <Text style={estilos.textoSecundario}>
+                  Cargando lugares turísticos...
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={estilos.estadoVacioIcono}>🌿</Text>
+                <Text style={estilos.estadoVacioTitulo}>
+                  {soloFavoritos
+                    ? "Todavía no hay favoritos aquí"
+                    : "No encontramos lugares"}
+                </Text>
+                <Text style={estilos.estadoVacioTexto}>
+                  {soloFavoritos
+                    ? "Probá otra categoría o desactivá el filtro de favoritos."
+                    : "Probá con otro nombre o una categoría diferente."}
+                </Text>
+                {(soloFavoritos ||
+                  categoriaSeleccionada !== null ||
+                  busqueda !== "") && (
+                  <Pressable
+                    style={estilos.botonSecundario}
+                    onPress={() => {
+                      setSoloFavoritos(false);
+                      setCategoriaSeleccionada(null);
+                      setBusqueda("");
+                    }}
+                    accessibilityRole="button"
+                  >
+                    <Text style={estilos.botonSecundarioTexto}>
+                      Ver todos los lugares
+                    </Text>
+                  </Pressable>
+                )}
+              </>
+            )}
+          </View>
+        }
+        renderItem={({ item }) => {
+          const categoria = categorias.find(
+            (actual) => actual.id === item.categoriaId,
+          );
+          const esFavorito = favoritos.includes(item.id);
+          const imagen = item.imagenes?.[0];
+          const favoritoDeshabilitado =
+            !favoritosListos ||
+            favoritosEnProceso ||
+            favoritosSoloLectura ||
+            errorFavoritos !== "";
+
+          return (
+            <View style={estilos.tarjetaLugar}>
+              <Pressable
+                style={estilos.enlaceLugar}
+                onPress={() =>
+                  router.push({
+                    pathname: "/lugar/[id]",
+                    params: { id: item.id },
+                  })
+                }
+                accessibilityRole="button"
+                accessibilityLabel={`Ver detalles de ${item.nombre}`}
+              >
+                {imagen ? (
+                  <Image
+                    source={{ uri: imagen }}
+                    style={estilos.imagenLugar}
+                    resizeMode="cover"
+                    accessibilityLabel={`Imagen de ${item.nombre}`}
+                  />
+                ) : (
+                  <View style={estilos.imagenVacia}>
+                    <Text style={estilos.imagenVaciaIcono}>🌿</Text>
+                  </View>
+                )}
+                <View style={estilos.infoLugar}>
+                  <View style={estilos.categoriaFila}>
+                    <View
+                      style={[
+                        estilos.puntoCategoria,
+                        { backgroundColor: categoria?.color ?? "#C8A16B" },
+                      ]}
+                    />
+                    <Text style={estilos.categoriaTexto} numberOfLines={1}>
+                      {categoria?.nombre ?? "Lugar turístico"}
+                    </Text>
+                  </View>
+                  <Text style={estilos.nombreLugar} numberOfLines={2}>
+                    {item.nombre}
+                  </Text>
+                  <Text style={estilos.descripcionLugar} numberOfLines={2}>
+                    {item.descripcionCorta}
+                  </Text>
+                  <Text style={estilos.verDetalle}>Ver lugar ›</Text>
+                </View>
+              </Pressable>
+              <Pressable
+                style={[
+                  estilos.botonCorazon,
+                  favoritoDeshabilitado && estilos.desactivado,
+                ]}
+                onPress={() => void cambiarFavorito(item.id)}
+                disabled={favoritoDeshabilitado}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  esFavorito
+                    ? `Quitar ${item.nombre} de favoritos`
+                    : `Agregar ${item.nombre} a favoritos`
+                }
+              >
+                <Text
+                  style={[estilos.corazon, esFavorito && estilos.corazonActivo]}
+                >
+                  {esFavorito ? "♥" : "♡"}
+                </Text>
+              </Pressable>
+            </View>
+          );
+        }}
+      />
     </SafeAreaView>
   );
 }
 
 const estilos = StyleSheet.create({
-  pantalla: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#FFFFFF",
+  pantalla: { flex: 1, backgroundColor: "#F6F8F5" },
+  lista: { flex: 1 },
+  contenidoLista: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 36 },
+  hero: {
+    overflow: "hidden",
+    backgroundColor: "#185F65",
+    borderRadius: 22,
+    paddingHorizontal: 22,
+    paddingVertical: 20,
+    minHeight: 136,
+    justifyContent: "center",
+    marginBottom: 12,
   },
-  titulo: {
-    fontSize: 30,
-    fontWeight: "bold",
-    color: "#111111",
+  aroDecorativo: {
+    position: "absolute",
+    width: 155,
+    height: 155,
+    borderWidth: 26,
+    borderColor: "#347A7E",
+    borderRadius: 100,
+    right: -45,
+    top: -50,
+    opacity: 0.72,
   },
+  ubicacion: {
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 1.1,
+    color: "#D7E9DF",
+    marginBottom: 7,
+  },
+  titulo: { fontSize: 32, lineHeight: 38, fontWeight: "800", color: "#FFFFFF" },
   subtitulo: {
+    marginTop: 5,
     fontSize: 16,
-    color: "#555555",
-    marginBottom: 20,
+    lineHeight: 22,
+    color: "#EDF5EE",
+    maxWidth: 275,
   },
-  tarjeta: {
+  cuentaCompacta: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
+    borderRadius: 16,
+    padding: 14,
+    minHeight: 70,
     backgroundColor: "#FFFFFF",
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#E6ECE7",
+  },
+  cuentaCompleta: {
+    backgroundColor: "#FFFFFF",
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E6ECE7",
+    marginBottom: 10,
+    gap: 10,
+  },
+  cuentaFila: { flexDirection: "row", alignItems: "center", gap: 10 },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#E9F3EB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarTexto: { color: "#1D6467", fontSize: 21, fontWeight: "800" },
+  cuentaDatos: { flex: 1, minWidth: 0 },
+  cuentaSaludo: {
+    color: "#253A3B",
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "700",
+  },
+  cuentaTitulo: {
+    color: "#243F3E",
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "700",
+  },
+  textoSecundario: { fontSize: 15, lineHeight: 21, color: "#5E7070" },
+  botonCuenta: {
+    minHeight: 44,
+    minWidth: 83,
     borderRadius: 12,
+    backgroundColor: "#EBF3F0",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+  },
+  botonCuentaTexto: { fontSize: 15, fontWeight: "800", color: "#185F65" },
+  enlaceCuenta: { color: "#185F65", fontSize: 15, fontWeight: "700" },
+  opcionesCuenta: {
+    paddingTop: 9,
+    gap: 7,
+    borderTopWidth: 1,
+    borderTopColor: "#EDF1ED",
+  },
+  opcionCuenta: {
+    minHeight: 48,
+    paddingHorizontal: 12,
+    justifyContent: "center",
+    borderRadius: 10,
+    backgroundColor: "#F4F7F4",
+  },
+  opcionCuentaTexto: { fontSize: 16, fontWeight: "600", color: "#185F65" },
+  textoCerrarSesion: { fontSize: 16, fontWeight: "700", color: "#A23B38" },
+  desactivado: { opacity: 0.45 },
+  botonPrimario: {
+    backgroundColor: "#185F65",
+    minHeight: 48,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  botonPrimarioTexto: { fontSize: 16, fontWeight: "700", color: "#FFFFFF" },
+  botonSecundario: {
+    minHeight: 48,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#C6D8D2",
+    backgroundColor: "#FFFFFF",
+    marginTop: 5,
+  },
+  botonSecundarioTexto: { fontSize: 16, fontWeight: "700", color: "#185F65" },
+  avisoConexion: {
     padding: 14,
     marginBottom: 12,
-    elevation: 2,
+    borderRadius: 14,
+    backgroundColor: "#EAF1EB",
+    gap: 8,
   },
-  nombre: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 5,
-    color: "#15803D",
+  textoConexion: { color: "#2C605A", fontSize: 15, lineHeight: 22 },
+  avisoAdvertencia: {
+    backgroundColor: "#FFF2E2",
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 12,
+    gap: 8,
+  },
+  textoAdvertencia: { fontSize: 15, lineHeight: 22, color: "#855126" },
+  reintentar: {
+    alignSelf: "flex-start",
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: 3,
+  },
+  reintentarTexto: { fontSize: 15, fontWeight: "800", color: "#145E63" },
+  cabeceraSeccion: { marginTop: 12, marginBottom: 12 },
+  seccionTitulo: {
+    fontSize: 22,
+    lineHeight: 29,
+    fontWeight: "800",
+    color: "#253D3D",
+  },
+  seccionSubtitulo: {
+    fontSize: 15,
+    lineHeight: 21,
+    color: "#627574",
+    marginTop: 2,
+  },
+  cuadriculaAccesos: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 10,
+    marginBottom: 17,
+  },
+  tarjetaAcceso: {
+    width: "48.5%",
+    minHeight: 113,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E6EDE9",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    justifyContent: "center",
+    gap: 2,
+  },
+  iconoAcceso: { fontSize: 28, lineHeight: 34, marginBottom: 2 },
+  tituloAcceso: {
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: "800",
+    color: "#254647",
+  },
+  descripcionAcceso: { fontSize: 15, lineHeight: 20, color: "#697C79" },
+  cabeceraCatalogo: { marginBottom: 12 },
+  catalogoTituloFila: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  contador: { fontSize: 15, color: "#376C68", fontWeight: "700" },
+  buscadorContenedor: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 54,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#CBDAD3",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  iconoBuscar: {
+    fontSize: 30,
+    lineHeight: 35,
+    color: "#587A77",
+    marginRight: 8,
   },
   buscador: {
-    borderWidth: 1,
-    borderColor: "#CCCCCC",
-    borderRadius: 8,
-    padding: 12,
+    flex: 1,
+    minWidth: 0,
     fontSize: 16,
-    marginBottom: 20,
-    color: "#111111",
+    color: "#233B3D",
+    paddingVertical: 9,
   },
-  contenedorFiltros: {
-    height: 50,
-    flexGrow: 0,
-    flexShrink: 0,
-    marginBottom: 15,
-  },
-  contenidoFiltros: {
+  limpiarBusqueda: {
+    width: 44,
+    height: 44,
     alignItems: "center",
-    paddingRight: 10,
+    justifyContent: "center",
   },
+  limpiarBusquedaTexto: { fontSize: 19, color: "#4D7270" },
+  contenedorFiltros: { flexGrow: 0, flexShrink: 0, marginBottom: 10 },
+  contenidoFiltros: { alignItems: "center", paddingRight: 14 },
   filaFiltros: {
     flexDirection: "row",
     alignItems: "center",
     minHeight: 48,
+    gap: 8,
   },
   filtro: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
     borderWidth: 1,
-    borderColor: "#CCCCCC",
-    borderRadius: 8,
-    marginRight: 10,
+    borderColor: "#C9D9D2",
+    borderRadius: 50,
+    backgroundColor: "#FFFFFF",
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: 16,
   },
-  textoFiltro: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: "#111111",
-  },
-  filtroActivo: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB",
-  },
-  textoFiltroActivo: {
-    color: "#FFFFFF",
-  },
-  botonEscanear: {
-    backgroundColor: "#2563EB",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
+  filtroActivo: { backgroundColor: "#185F65", borderColor: "#185F65" },
+  textoFiltro: { fontSize: 15, fontWeight: "700", color: "#3C5758" },
+  textoFiltroActivo: { color: "#FFFFFF" },
+  favoritosFiltro: {
+    alignSelf: "flex-start",
+    minHeight: 44,
+    borderRadius: 50,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+    backgroundColor: "#FCEEF0",
+    borderColor: "#EED2D8",
+    borderWidth: 1,
     marginBottom: 15,
   },
-  textoEscanear: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
-  },
-  avisoFavoritos: {
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 8,
-    backgroundColor: "#FEF3C7",
-    gap: 8,
-  },
-  textoAvisoFavoritos: {
-    color: "#92400E",
-  },
-  botonFavoritos: {
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#CCCCCC",
-    borderRadius: 8,
-    marginBottom: 15,
+  favoritosFiltroActivo: { backgroundColor: "#A63756", borderColor: "#A63756" },
+  favoritosFiltroTexto: { color: "#963652", fontSize: 15, fontWeight: "700" },
+  favoritosFiltroTextoActivo: { color: "#FFFFFF" },
+  tarjetaLugar: {
+    flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E5ECE7",
+    padding: 9,
+    marginBottom: 12,
   },
-  botonFavoritosActivo: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB",
-  },
-  textoFavoritos: {
-    fontWeight: "bold",
-    color: "#333333",
-  },
-  textoFavoritosActivo: {
-    color: "#FFFFFF",
-  },
-  contenidoTarjeta: {
+  enlaceLugar: {
     flex: 1,
+    flexDirection: "row",
     minWidth: 0,
+    alignItems: "center",
   },
-  descripcionTarjeta: {
-    fontSize: 14,
-    color: "#475569",
-    lineHeight: 20,
+  imagenLugar: {
+    width: 100,
+    height: 116,
+    borderRadius: 11,
+    backgroundColor: "#E9EFE8",
   },
-  botonCorazon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  imagenVacia: {
+    width: 100,
+    height: 116,
+    borderRadius: 11,
+    backgroundColor: "#EAF0E8",
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 10,
   },
-  corazon: {
-    fontSize: 22,
-    color: "#94A3B8",
+  imagenVaciaIcono: { fontSize: 36 },
+  infoLugar: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
   },
-  corazonActivo: {
-    color: "#E11D48",
-  },
-  botonIngresar: {
-    padding: 12,
+  categoriaFila: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    gap: 6,
+    marginBottom: 4,
   },
-  textoIngresar: {
-    color: "#2563EB",
-    fontWeight: "bold",
+  puntoCategoria: { width: 8, height: 8, borderRadius: 4 },
+  categoriaTexto: {
+    flex: 1,
+    minWidth: 0,
+    color: "#617573",
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "600",
   },
-  resumenSesion: {
-    marginBottom: 14,
+  nombreLugar: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: "800",
+    color: "#263D3E",
+    marginBottom: 3,
   },
-  botonCerrarSesion: {
-    alignSelf: "flex-start",
-    paddingVertical: 10,
+  descripcionLugar: { fontSize: 15, lineHeight: 19, color: "#596C6C" },
+  verDetalle: {
+    fontSize: 15,
+    color: "#185F65",
+    fontWeight: "800",
+    marginTop: 6,
   },
-  botonBiometria: {
-    alignSelf: "flex-start",
-    paddingVertical: 10,
+  botonCorazon: {
+    width: 44,
+    minHeight: 52,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 1,
   },
-  textoCerrarSesion: {
-    color: "#B91C1C",
-    fontSize: 14,
-  },
-  avisoOffline: {
-    backgroundColor: "#EFF6FF",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
+  corazon: { fontSize: 28, color: "#6B8280" },
+  corazonActivo: { color: "#B32950" },
+  estadoVacio: {
+    marginTop: 5,
+    paddingVertical: 34,
+    paddingHorizontal: 20,
+    alignItems: "center",
     gap: 8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
   },
-  textoOffline: {
-    color: "#1E40AF",
-    fontSize: 14,
-    marginBottom: 8,
+  estadoVacioIcono: { fontSize: 34 },
+  estadoVacioTitulo: {
+    color: "#233F3F",
+    fontSize: 18,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  estadoVacioTexto: {
+    color: "#687A78",
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "center",
   },
 });

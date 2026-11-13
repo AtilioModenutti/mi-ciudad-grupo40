@@ -1,3 +1,5 @@
+import { useFavoritos } from "@/contextos/FavoritosContexto";
+import { useSesion } from "@/contextos/SesionContexto";
 import type { LocationObjectCoords } from "expo-location";
 import * as Network from "expo-network";
 import { router, useIsFocused, useLocalSearchParams } from "expo-router";
@@ -30,6 +32,9 @@ import type { Lugar } from "@/tipos/lugar";
 
 export default function MapaScreen() {
   const { lugarId } = useLocalSearchParams<{ lugarId?: string }>();
+  const { sesionBloqueada } = useSesion();
+  const { favoritos, favoritosListos, errorFavoritos, reintentarFavoritos } =
+    useFavoritos();
   const mapaRef = useRef<MapView>(null);
   const [mapaListo, setMapaListo] = useState(false);
   const estadoRed = Network.useNetworkState();
@@ -52,6 +57,7 @@ export default function MapaScreen() {
     null,
   );
   const [mostrarCercanos, setMostrarCercanos] = useState(false);
+  const [soloFavoritos, setSoloFavoritos] = useState(false);
   const isFocused = useIsFocused();
   const [rumbo, setRumbo] = useState<number | null>(null);
   const [sensorDisponible, setSensorDisponible] = useState<boolean | null>(
@@ -148,15 +154,20 @@ export default function MapaScreen() {
     if (!destino) return;
 
     setCategoriaSeleccionada(null);
+    // Un lugar abierto desde el catálogo debe seguir visible aunque el filtro estuviera activo.
+    setSoloFavoritos(false);
     setLugarSeleccionadoId(destino.id);
 
     if (mapaListo) {
-      mapaRef.current?.animateToRegion({
-        latitude: destino.coordenadas.latitud,
-        longitude: destino.coordenadas.longitud,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
-      }, 500);
+      mapaRef.current?.animateToRegion(
+        {
+          latitude: destino.coordenadas.latitud,
+          longitude: destino.coordenadas.longitud,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        },
+        500,
+      );
     }
   }, [isFocused, lugarId, lugares, mapaListo]);
 
@@ -165,11 +176,23 @@ export default function MapaScreen() {
     : undefined;
 
   const lugaresFiltrados = lugares.filter((lugar) => {
-    return (
+    const coincideCategoria =
       categoriaSeleccionada === null ||
-      lugar.categoriaId === categoriaSeleccionada
-    );
+      lugar.categoriaId === categoriaSeleccionada;
+    const coincideFavorito =
+      !soloFavoritos || (favoritosListos && favoritos.includes(lugar.id));
+    return coincideCategoria && coincideFavorito;
   });
+
+  const cantidadFavoritosEnCategoria = lugares.filter(
+    (lugar) =>
+      (categoriaSeleccionada === null ||
+        lugar.categoriaId === categoriaSeleccionada) &&
+      favoritos.includes(lugar.id),
+  ).length;
+
+  const filtroFavoritosDeshabilitado =
+    !favoritosListos || sesionBloqueada || errorFavoritos !== "";
 
   const lugarSeleccionado =
     lugaresFiltrados.find((lugar) => lugar.id === lugarSeleccionadoId) ?? null;
@@ -260,7 +283,7 @@ export default function MapaScreen() {
 
   return (
     <View style={styles.contenedor}>
-      <Text style={styles.titulo}>Lugares turísticos</Text>
+      <Text style={styles.titulo}>Explorá el mapa</Text>
       {(sinConexion || desdeCache) && (
         <View style={styles.avisoOffline}>
           <Text style={styles.textoAvisoOffline}>
@@ -321,6 +344,52 @@ export default function MapaScreen() {
           </Pressable>
         ))}
       </ScrollView>
+
+      <View style={styles.filaFavoritos}>
+        <Pressable
+          style={[
+            styles.botonFiltroFavoritos,
+            soloFavoritos && styles.botonFiltroFavoritosActivo,
+            filtroFavoritosDeshabilitado &&
+              styles.botonFiltroFavoritosDeshabilitado,
+          ]}
+          disabled={filtroFavoritosDeshabilitado}
+          onPress={() => {
+            setSoloFavoritos((actual) => !actual);
+            setLugarSeleccionadoId(null);
+          }}
+          accessibilityRole="button"
+          accessibilityState={{
+            selected: soloFavoritos,
+            disabled: filtroFavoritosDeshabilitado,
+          }}
+          accessibilityLabel="Filtrar lugares por mis favoritos"
+        >
+          <Text
+            style={[
+              styles.textoFiltroFavoritos,
+              soloFavoritos && styles.textoFiltroFavoritosActivo,
+            ]}
+          >
+            {sesionBloqueada
+              ? "Desbloqueá la sesión para ver favoritos"
+              : !favoritosListos
+                ? "Cargando favoritos..."
+                : soloFavoritos
+                  ? `♥ Mostrando mis favoritos (${cantidadFavoritosEnCategoria})`
+                  : `♡ Solo mis favoritos (${cantidadFavoritosEnCategoria})`}
+          </Text>
+        </Pressable>
+      </View>
+
+      {errorFavoritos !== "" && (
+        <View style={styles.avisoFavoritos}>
+          <Text style={styles.mensajeCercanos}>{errorFavoritos}</Text>
+          <Pressable onPress={reintentarFavoritos} accessibilityRole="button">
+            <Text style={styles.textoReintentar}>Reintentar favoritos</Text>
+          </Pressable>
+        </View>
+      )}
 
       {errorCategorias !== "" && (
         <Text style={styles.mensajeCercanos}>{errorCategorias}</Text>
@@ -395,7 +464,17 @@ export default function MapaScreen() {
         lugares.length > 0 &&
         lugaresFiltrados.length === 0 && (
           <Text style={styles.mensajeCercanos}>
-            No hay lugares turísticos disponibles para esta categoría.
+            {soloFavoritos
+              ? !favoritosListos
+                ? "Cargando tus favoritos..."
+                : errorFavoritos !== ""
+                  ? "No se pudieron consultar tus favoritos. Reintentá la carga."
+                  : favoritos.length === 0
+                    ? "Todavía no marcaste lugares como favoritos. Podés agregarlos desde el catálogo."
+                    : categoriaSeleccionada !== null
+                      ? "No tenés favoritos en esta categoría. Elegí Todos o desactivá el filtro."
+                      : "Tus favoritos no están entre los lugares disponibles en el mapa."
+              : "No hay lugares turísticos disponibles para esta categoría."}
           </Text>
         )}
 
@@ -413,17 +492,21 @@ export default function MapaScreen() {
             provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
             showsUserLocation={ubicacion !== null}
             style={styles.mapa}
-            initialRegion={destinoInicial ? {
-              latitude: destinoInicial.coordenadas.latitud,
-              longitude: destinoInicial.coordenadas.longitud,
-              latitudeDelta: 0.02,
-              longitudeDelta: 0.02,
-            } : {
-              latitude: -32.223,
-              longitude: -58.18,
-              latitudeDelta: 0.16,
-              longitudeDelta: 0.22,
-            }}
+            initialRegion={
+              destinoInicial
+                ? {
+                    latitude: destinoInicial.coordenadas.latitud,
+                    longitude: destinoInicial.coordenadas.longitud,
+                    latitudeDelta: 0.02,
+                    longitudeDelta: 0.02,
+                  }
+                : {
+                    latitude: -32.223,
+                    longitude: -58.18,
+                    latitudeDelta: 0.16,
+                    longitudeDelta: 0.22,
+                  }
+            }
           >
             {lugaresFiltrados.map((lugar) => (
               <Marker
@@ -516,143 +599,136 @@ export default function MapaScreen() {
 }
 
 const styles = StyleSheet.create({
-  contenedor: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
+  contenedor: { flex: 1, backgroundColor: "#F6F8F5" },
   avisoOffline: {
-    padding: 12,
-    marginHorizontal: 12,
-    marginBottom: 8,
-    borderRadius: 8,
-    backgroundColor: "#EFF6FF",
-    gap: 6,
+    padding: 13,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    borderRadius: 13,
+    backgroundColor: "#E8F2EF",
+    gap: 7,
   },
-  textoAvisoOffline: {
-    color: "#1E40AF",
-    fontSize: 14,
-  },
+  textoAvisoOffline: { color: "#315F5D", fontSize: 15, lineHeight: 21 },
   textoReintentar: {
-    color: "#2563EB",
-    fontWeight: "bold",
+    color: "#185F65",
+    fontSize: 16,
+    fontWeight: "800",
+    paddingVertical: 7,
   },
   titulo: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#000000",
-    marginBottom: 20,
-  },
-  mapa: {
-    flex: 1,
-  },
-  barraFiltros: {
-    flexGrow: 0,
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#244243",
     marginBottom: 12,
+    marginTop: 10,
+    marginHorizontal: 18,
   },
-  contenidoFiltros: {
-    paddingHorizontal: 12,
-    gap: 8,
-    alignItems: "center",
-  },
+  mapa: { flex: 1 },
+  barraFiltros: { flexGrow: 0, marginBottom: 10 },
+  contenidoFiltros: { paddingHorizontal: 16, gap: 8, alignItems: "center" },
   filtro: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 20,
-    backgroundColor: "#E5E7EB",
+    paddingHorizontal: 16,
+    minHeight: 44,
+    justifyContent: "center",
+    borderRadius: 28,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#C9DAD2",
   },
-  filtroActivo: {
-    backgroundColor: "#2563EB",
+  filtroActivo: { backgroundColor: "#185F65", borderColor: "#185F65" },
+  textoFiltro: { color: "#345758", fontSize: 15, fontWeight: "700" },
+  textoFiltroActivo: { color: "#FFFFFF", fontWeight: "800" },
+  filaFavoritos: {
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    alignItems: "flex-start",
   },
-  textoFiltro: {
-    color: "#111827",
+  botonFiltroFavoritos: {
+    minHeight: 44,
+    justifyContent: "center",
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "#E2BAC4",
+    backgroundColor: "#FFF6F8",
+    paddingHorizontal: 16,
   },
-  textoFiltroActivo: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
+  botonFiltroFavoritosActivo: {
+    backgroundColor: "#A63856",
+    borderColor: "#A63856",
+  },
+  botonFiltroFavoritosDeshabilitado: { opacity: 0.55 },
+  textoFiltroFavoritos: { color: "#963652", fontSize: 15, fontWeight: "700" },
+  textoFiltroFavoritosActivo: { color: "#FFFFFF" },
+  avisoFavoritos: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+    padding: 13,
+    borderRadius: 12,
+    backgroundColor: "#FFF1F2",
   },
   panelIndicaciones: {
-    padding: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
     backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-    gap: 10,
-  },
-  nombreDestino: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#111827",
-  },
-  botonesIndicaciones: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  botonIndicaciones: {
-    flex: 1,
-    backgroundColor: "#2563EB",
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  textoIndicaciones: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
-  },
-  textoDistancia: {
-    fontSize: 14,
-    color: "#475569",
-  },
-  botonCercanos: {
-    backgroundColor: "#2563EB",
-    padding: 12,
-    marginHorizontal: 12,
-    marginBottom: 8,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  textoBotonCercanos: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
-  },
-  contenedorCercanos: {
-    marginHorizontal: 12,
-    marginBottom: 8,
-    backgroundColor: "#F8FAFC",
-    borderRadius: 8,
-    padding: 8,
-  },
-  listaCercanos: {
-    maxHeight: 180,
-  },
-  itemCercano: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-  },
-  nombreCercano: {
-    fontWeight: "bold",
-    color: "#111827",
-  },
-  distanciaCercano: {
-    color: "#475569",
-    marginTop: 4,
-  },
-  mensajeCercanos: {
-    color: "#475569",
-    padding: 10,
-  },
-  filaBrujula: {
-    flexDirection: "row",
-    alignItems: "center",
+    borderTopColor: "#DCE8E0",
     gap: 12,
   },
-  flechaBrujula: {
-    fontSize: 36,
-    fontWeight: "bold",
-    color: "#2563EB",
+  nombreDestino: { fontSize: 18, fontWeight: "800", color: "#264546" },
+  botonesIndicaciones: { flexDirection: "row", gap: 10 },
+  botonIndicaciones: {
+    flex: 1,
+    minHeight: 48,
+    backgroundColor: "#185F65",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
   },
+  textoIndicaciones: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
+  textoDistancia: { fontSize: 15, lineHeight: 21, color: "#56706E" },
+  botonCercanos: {
+    backgroundColor: "#185F65",
+    minHeight: 48,
+    paddingHorizontal: 14,
+    justifyContent: "center",
+    marginHorizontal: 16,
+    marginBottom: 10,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  textoBotonCercanos: { color: "#FFFFFF", fontWeight: "700", fontSize: 16 },
+  contenedorCercanos: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#DDE8E0",
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 11,
+  },
+  listaCercanos: { maxHeight: 210 },
+  itemCercano: {
+    minHeight: 52,
+    justifyContent: "center",
+    padding: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E7EEE8",
+  },
+  nombreCercano: { fontWeight: "800", fontSize: 16, color: "#284747" },
+  distanciaCercano: { color: "#56706E", fontSize: 15, marginTop: 4 },
+  mensajeCercanos: {
+    color: "#536F6C",
+    fontSize: 15,
+    lineHeight: 22,
+    padding: 10,
+  },
+  filaBrujula: { flexDirection: "row", alignItems: "center", gap: 12 },
+  flechaBrujula: { fontSize: 36, fontWeight: "800", color: "#185F65" },
   textoBrujula: {
     flexShrink: 1,
-    fontSize: 14,
-    color: "#475569",
+    fontSize: 15,
+    lineHeight: 21,
+    color: "#526F6A",
   },
 });

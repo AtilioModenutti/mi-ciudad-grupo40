@@ -118,10 +118,10 @@ export default function DetalleLugar() {
                   indiceImagen === 0 && estilos.botonDeshabilitado,
                 ]}
               >
-                <Text>Anterior</Text>
+                <Text style={estilos.textoGaleria}>Anterior</Text>
               </Pressable>
 
-              <Text>
+              <Text style={estilos.numeroGaleria}>
                 {indiceImagen + 1} / {lugar.imagenes.length}
               </Text>
 
@@ -134,14 +134,14 @@ export default function DetalleLugar() {
                     estilos.botonDeshabilitado,
                 ]}
               >
-                <Text>Siguiente</Text>
+                <Text style={estilos.textoGaleria}>Siguiente</Text>
               </Pressable>
             </View>
           )}
         </View>
       ) : (
         <View style={estilos.sinImagen}>
-          <Text>No hay fotografías disponibles.</Text>
+          <Text style={estilos.descripcion}>No hay fotografías disponibles.</Text>
         </View>
       )}
 
@@ -170,17 +170,17 @@ export default function DetalleLugar() {
 
       {errorFavoritos !== "" && (
         <View style={estilos.avisoFavoritos}>
-          <Text>{errorFavoritos}</Text>
+          <Text style={estilos.avisoTexto}>{errorFavoritos}</Text>
 
           <Pressable onPress={reintentarFavoritos} accessibilityRole="button">
-            <Text style={{ color: "#2563EB" }}>Reintentar favoritos</Text>
+            <Text style={estilos.enlace}>Reintentar favoritos</Text>
           </Pressable>
         </View>
       )}
 
       {favoritosSoloLectura && favoritosListos && (
         <View style={estilos.avisoFavoritos}>
-          <Text>
+          <Text style={estilos.avisoTexto}>
             Estos favoritos están guardados localmente y no pueden modificarse
             sin conexión.
           </Text>
@@ -233,7 +233,7 @@ export default function DetalleLugar() {
           style={estilos.botonGaleria}
           accessibilityRole="button"
         >
-          <Text style={{ color: "#1D4ED8", fontWeight: "700", textAlign: "center" }}>
+          <Text style={estilos.textoGaleria}>
             Escuchar audioguía de este lugar
           </Text>
         </Pressable>
@@ -242,7 +242,7 @@ export default function DetalleLugar() {
       <Text style={estilos.seccion}>Horarios</Text>
 
       {lugar.horarios.length === 0 ? (
-        <Text>Horarios no informados.</Text>
+        <Text style={estilos.dato}>Horarios no informados.</Text>
       ) : (
         lugar.horarios.map((horario, index) => (
           <Text key={`${horario.dia}-${index}`} style={estilos.dato}>
@@ -255,119 +255,31 @@ export default function DetalleLugar() {
 }
 
 const estilos = StyleSheet.create({
-  contenedor: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#FFFFFF",
-  },
-  titulo: {
-    flex: 1,
-    fontSize: 26,
-    fontWeight: "bold",
-  },
-  descripcion: {
-    fontSize: 16,
-    marginBottom: 15,
-  },
-  direccion: {
-    fontSize: 14,
-    color: "#666666",
-  },
-  botonMapa: {
-    marginTop: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: "#2563EB",
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  textoBotonMapa: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  id: {
-    fontSize: 14,
-    color: "#e40000",
-  },
-  categoriaId: {
-    fontSize: 14,
-    color: "#268600",
-  },
-  contenido: {
-    padding: 20,
-  },
-  imagen: {
-    width: "100%",
-    height: 300,
-    borderRadius: 10,
-    marginBottom: 20,
-  },
-  sinImagen: {
-    height: 220,
-    backgroundColor: "#EEEEEE",
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 20,
-    marginBottom: 20,
-  },
-  seccion: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginTop: 24,
-    marginBottom: 12,
-    color: "#222222",
-  },
-  dato: {
-    fontSize: 15,
-    color: "#444444",
-    marginBottom: 8,
-  },
-  categoria: {
-    fontSize: 14,
-    fontWeight: "bold",
-    marginBottom: 12,
-  },
-  galeria: {
-    marginBottom: 20,
-  },
-  controlesGaleria: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  botonGaleria: {
-    padding: 10,
-    borderRadius: 8,
-    backgroundColor: "#E5E7EB",
-  },
-  botonDeshabilitado: {
-    opacity: 0.35,
-  },
-  encabezado: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 15,
-    gap: 12,
-  },
-  avisoFavoritos: {
-    backgroundColor: "#FEF3C7",
-    padding: 12,
-    borderRadius: 8,
-    gap: 8,
-    marginBottom: 12,
-  },
-  botonCorazon: {
-    minWidth: 44,
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  corazon: {
-    fontSize: 30,
-    color: "#777777",
-  },
-  corazonActivo: {
-    color: "#DC2626",
-  },
+  contenedor: { flex: 1, backgroundColor: "#F6F8F5" },
+  contenido: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 38 },
+  titulo: { flex: 1, fontSize: 27, lineHeight: 34, fontWeight: "800", color: "#244344" },
+  descripcion: { fontSize: 16, lineHeight: 24, color: "#4B6562", marginBottom: 15 },
+  direccion: { fontSize: 16, lineHeight: 23, color: "#526F6B" },
+  botonMapa: { marginTop: 16, minHeight: 54, paddingHorizontal: 16, backgroundColor: "#185F65", borderRadius: 12, justifyContent: "center", alignItems: "center" },
+  textoBotonMapa: { color: "#FFFFFF", fontSize: 16, fontWeight: "800" },
+  id: { fontSize: 15, color: "#A43C39" },
+  categoriaId: { fontSize: 15, color: "#287149" },
+  imagen: { width: "100%", height: 260, borderRadius: 16, marginBottom: 12, backgroundColor: "#DFEDE6" },
+  sinImagen: { height: 210, backgroundColor: "#E7F1EB", justifyContent: "center", alignItems: "center", borderRadius: 16, marginBottom: 16 },
+  seccion: { fontSize: 21, fontWeight: "800", marginTop: 23, marginBottom: 11, color: "#244344" },
+  dato: { fontSize: 16, lineHeight: 24, color: "#49625E", marginBottom: 8 },
+  categoria: { fontSize: 16, fontWeight: "800", marginBottom: 12 },
+  galeria: { marginBottom: 14 },
+  controlesGaleria: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 6 },
+  botonGaleria: { minHeight: 48, paddingHorizontal: 14, justifyContent: "center", borderRadius: 12, backgroundColor: "#E7F1EC", borderWidth: 1, borderColor: "#C5DAD0" },
+  textoGaleria: { fontSize: 16, fontWeight: "800", color: "#185F65", textAlign: "center" },
+  numeroGaleria: { fontSize: 16, color: "#56706E", fontWeight: "700" },
+  botonDeshabilitado: { opacity: 0.35 },
+  encabezado: { flexDirection: "row", alignItems: "center", marginBottom: 13, gap: 12 },
+  avisoFavoritos: { backgroundColor: "#FFF1E0", padding: 13, borderRadius: 12, gap: 8, marginBottom: 12 },
+  avisoTexto: { fontSize: 15, lineHeight: 22, color: "#855126" },
+  enlace: { color: "#185F65", fontSize: 15, fontWeight: "800", paddingVertical: 5 },
+  botonCorazon: { minWidth: 48, minHeight: 48, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF1F4", borderRadius: 12 },
+  corazon: { fontSize: 30, color: "#7B8A82" },
+  corazonActivo: { color: "#AA3757" },
 });

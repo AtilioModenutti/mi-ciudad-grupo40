@@ -43,14 +43,18 @@ function formatearFecha(isoString: string): string {
 export function TarjetaEvento({ evento, alPresionar, nombreLugar }: Props) {
   const estadoVisual = formatearEstado(evento.estado);
   const fechaTexto = formatearFecha(evento.inicio);
-  const ubicacion = nombreLugar
-    || evento.direccionLibre?.trim()
-    || (evento.lugarId ? "Lugar asociado no disponible" : "Ubicación no informada");
-  const precioTexto = evento.precio === null
-    ? "Precio no informado"
-    : evento.precio === 0
-      ? "Entrada libre y gratuita"
-      : `$ ${evento.precio.toLocaleString("es-AR")}`;
+  const ubicacion =
+    nombreLugar ||
+    evento.direccionLibre?.trim() ||
+    (evento.lugarId
+      ? "Lugar asociado no disponible"
+      : "Ubicación no informada");
+  const precioTexto =
+    evento.precio === null
+      ? "Precio no informado"
+      : evento.precio === 0
+        ? "Entrada libre y gratuita"
+        : `$ ${evento.precio.toLocaleString("es-AR")}`;
 
   return (
     <Pressable
@@ -111,91 +115,45 @@ export function TarjetaEvento({ evento, alPresionar, nombreLugar }: Props) {
 const styles = StyleSheet.create({
   tarjeta: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    marginHorizontal: 16,
+    borderRadius: 18,
+    marginHorizontal: 18,
     marginVertical: 8,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
+    borderColor: "#DFE9E3",
   },
-  tarjetaPresionada: {
-    opacity: 0.85,
-    transform: [{ scale: 0.99 }],
-  },
-  imagen: {
-    width: "100%",
-    height: 150,
-  },
+  tarjetaPresionada: { opacity: 0.86 },
+  imagen: { width: "100%", height: 170 },
   imagenPlaceholder: {
-    backgroundColor: "#E2E8F0",
+    backgroundColor: "#E7F0EB",
     justifyContent: "center",
     alignItems: "center",
   },
-  textoPlaceholder: {
-    color: "#64748B",
-    fontSize: 13,
-  },
-  cuerpo: {
-    padding: 14,
-    gap: 6,
-  },
+  textoPlaceholder: { color: "#56706E", fontSize: 15 },
+  cuerpo: { padding: 16, gap: 9 },
   filaCabecera: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
   },
-  fecha: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#2563EB",
-    letterSpacing: 0.5,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  badgeTexto: {
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  titulo: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#0F172A",
-    lineHeight: 22,
-  },
-  descripcion: {
-    fontSize: 13,
-    color: "#475569",
-    lineHeight: 18,
-  },
+  fecha: { fontSize: 15, fontWeight: "800", color: "#185F65" },
+  badge: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 20 },
+  badgeTexto: { fontSize: 14, fontWeight: "800" },
+  titulo: { fontSize: 19, fontWeight: "800", color: "#244344", lineHeight: 25 },
+  descripcion: { fontSize: 16, color: "#556E6A", lineHeight: 23 },
   filaPie: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 6,
-    paddingTop: 8,
+    marginTop: 8,
+    paddingTop: 11,
     borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
+    borderTopColor: "#E6EEE7",
+    gap: 8,
   },
-  ubicacion: {
-    fontSize: 12,
-    color: "#64748B",
-    flex: 1,
-    marginRight: 8,
-  },
-  precio: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
-  precioGratis: {
-    color: "#137333",
-  },
+  ubicacion: { fontSize: 15, color: "#56706E", flex: 1 },
+  precio: { fontSize: 15, fontWeight: "800", color: "#244344" },
+  precioGratis: { color: "#287249" },
 });

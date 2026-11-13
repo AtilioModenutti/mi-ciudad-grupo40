@@ -75,6 +75,7 @@ export default function Registrarse() {
       keyboardShouldPersistTaps="handled"
       bottomOffset={60}
     >
+      <Text style={estilos.marca}>MI CIUDAD · COLÓN</Text>
       <Text style={estilos.titulo}>Crear cuenta</Text>
 
       <Text style={estilos.subtitulo}>
@@ -138,63 +139,73 @@ export default function Registrarse() {
 }
 
 const estilos = StyleSheet.create({
-  pantalla: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
+  pantalla: { flex: 1, backgroundColor: "#F6F8F5" },
   contenido: {
     flexGrow: 1,
-    justifyContent: "flex-start",
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 40,
+    paddingHorizontal: 22,
+    paddingTop: 28,
+    paddingBottom: 46,
+  },
+  marca: {
+    color: "#185F65",
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 1,
+    marginBottom: 9,
   },
   titulo: {
-    fontSize: 28,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 8,
+    fontSize: 29,
+    fontWeight: "800",
+    color: "#243F3F",
+    marginBottom: 7,
   },
   subtitulo: {
-    fontSize: 15,
-    color: "#64748B",
-    textAlign: "center",
-    marginBottom: 25,
+    fontSize: 16,
+    lineHeight: 23,
+    color: "#59716F",
+    marginBottom: 24,
   },
   etiqueta: {
-    fontSize: 14,
-    fontWeight: "bold",
+    fontSize: 16,
+    color: "#294B4B",
+    fontWeight: "700",
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    padding: 14,
-    marginBottom: 16,
+    borderColor: "#C9DBD2",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    minHeight: 54,
+    paddingHorizontal: 14,
+    marginBottom: 17,
     fontSize: 16,
-    color: "#111111",
+    color: "#243F3F",
   },
   mensaje: {
-    color: "#B45309",
-    marginBottom: 15,
+    fontSize: 15,
+    lineHeight: 22,
+    color: "#855126",
+    backgroundColor: "#FFF1E0",
+    borderRadius: 12,
+    padding: 13,
+    marginBottom: 16,
   },
   boton: {
-    backgroundColor: "#2563EB",
-    padding: 15,
-    borderRadius: 8,
+    backgroundColor: "#185F65",
+    minHeight: 54,
+    borderRadius: 12,
     alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    marginTop: 3,
   },
-  textoBoton: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
+  textoBoton: { color: "#FFFFFF", fontWeight: "800", fontSize: 17 },
   volver: {
-    marginTop: 20,
+    marginTop: 18,
+    minHeight: 48,
     alignItems: "center",
+    justifyContent: "center",
   },
-  textoVolver: {
-    color: "#2563EB",
-  },
+  textoVolver: { color: "#185F65", fontWeight: "700", fontSize: 16 },
 });

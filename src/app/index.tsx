@@ -357,6 +357,14 @@ export default function Inicio() {
         <Text style={estilos.textoEscanear}>Escuchar audioguías</Text>
       </Pressable>
 
+      <Pressable
+        style={estilos.botonEscanear}
+        onPress={() => router.push("/visitas")}
+        accessibilityRole="button"
+      >
+        <Text style={estilos.textoEscanear}>Mi recorrido y visitas</Text>
+      </Pressable>
+
       <TextInput
         style={estilos.buscador}
         placeholder="Buscar lugares"

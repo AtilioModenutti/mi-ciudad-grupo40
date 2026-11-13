@@ -1,6 +1,9 @@
 import type { BarcodeScanningResult } from "expo-camera";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
+import * as Haptics from "expo-haptics";
+import { useSesion } from "@/contextos/SesionContexto";
+import { registrarVisita } from "@/servicios/visitas";
 import { useState } from "react";
 import {
     Alert,
@@ -16,6 +19,7 @@ import { obtenerLugarPorCodigoQr } from "../servicios/lugares";
 export default function Escanear() {
   const [permiso, solicitarPermiso] = useCameraPermissions();
   const [escaneado, setEscaneado] = useState(false);
+  const { usuario, sesionBloqueada } = useSesion();
 
   async function alEscanear({ data }: BarcodeScanningResult) {
     if (escaneado) return;
@@ -26,6 +30,16 @@ export default function Escanear() {
       const lugar = await obtenerLugarPorCodigoQr(data);
 
       if (lugar) {
+        // Un invitado puede consultar el QR; la visita solo se guarda con sesión.
+        if (usuario && !sesionBloqueada) {
+          await registrarVisita(usuario.id, lugar.id, "qr");
+          // La visita ya está guardada; la vibración es opcional si la build no incluye este módulo.
+          try {
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch {
+            // No impedir la navegación ni mostrar un error por una vibración no disponible.
+          }
+        }
         router.replace({
           pathname: "/lugar/[id]",
           params: { id: lugar.id },
@@ -42,8 +56,8 @@ export default function Escanear() {
           ],
         );
       }
-    } catch {
-      Alert.alert("Error", "No se pudo comprobar el código.", [
+    } catch (error) {
+      Alert.alert("Error", error instanceof Error ? error.message : "No se pudo comprobar el código.", [
         {
           text: "Reintentar",
           onPress: () => setEscaneado(false),

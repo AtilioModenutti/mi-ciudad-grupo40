@@ -9,6 +9,7 @@ import {
 import { AppState } from "react-native";
 
 import { obtenerUsuarioActual } from "@/servicios/autenticacion";
+import { NotificacionesServicio } from "@/servicios/notificaciones.servicio";
 import { comprobarBiometria, verificarBiometria } from "@/servicios/biometria";
 import { obtenerBiometriaHabilitada } from "@/servicios/preferencias-biometria";
 import { eliminarToken, guardarToken, obtenerToken } from "@/servicios/sesion";
@@ -132,6 +133,20 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
     const revision = ++revisionSesion.current;
 
     try {
+      if (usuario && tokenSesion) {
+        try {
+          await Promise.race([
+            Promise.all([
+              NotificacionesServicio.cancelarRecordatoriosDeUsuario(usuario.id),
+              NotificacionesServicio.eliminarDispositivoDeApi(tokenSesion, usuario.id),
+            ]),
+            new Promise<void>((resolver) => setTimeout(resolver, 2500)),
+          ]);
+        } catch (error) {
+          console.warn("No se pudo desvincular el dispositivo al cerrar sesión:", error);
+        }
+      }
+
       await eliminarToken();
 
       if (revision !== revisionSesion.current) {

@@ -341,6 +341,22 @@ export default function Inicio() {
         <Text style={estilos.textoEscanear}>Ver mapa turístico</Text>
       </Pressable>
 
+      <Pressable
+        style={estilos.botonEscanear}
+        onPress={() => router.push("/agenda")}
+        accessibilityRole="button"
+      >
+        <Text style={estilos.textoEscanear}>Agenda de eventos</Text>
+      </Pressable>
+
+      <Pressable
+        style={estilos.botonEscanear}
+        onPress={() => router.push("/audioguias")}
+        accessibilityRole="button"
+      >
+        <Text style={estilos.textoEscanear}>Escuchar audioguías</Text>
+      </Pressable>
+
       <TextInput
         style={estilos.buscador}
         placeholder="Buscar lugares"

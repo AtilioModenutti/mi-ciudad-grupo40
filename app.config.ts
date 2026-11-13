@@ -7,6 +7,22 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...(config.plugins ?? []),
   ];
 
+  plugins.push([
+    "expo-audio",
+    {
+      enableBackgroundPlayback: true,
+      enableBackgroundRecording: false,
+      recordAudioAndroid: false,
+    },
+  ]);
+
+  plugins.push([
+    "expo-notifications",
+    {
+      color: "#2563EB",
+    },
+  ]);
+
   if (googleMapsApiKey) {
     plugins.push([
       "react-native-maps",
@@ -20,6 +36,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name: config.name ?? "mi-ciudad",
     slug: config.slug ?? "mi-ciudad",
+    android: {
+      ...(config.android ?? {}),
+      googleServicesFile: "./google-services.json",
+    },
     plugins,
   };
 };

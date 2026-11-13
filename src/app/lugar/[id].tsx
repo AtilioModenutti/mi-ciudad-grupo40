@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -196,6 +196,15 @@ export default function DetalleLugar() {
       <Text style={estilos.descripcion}>{lugar.descripcion}</Text>
       <Text style={estilos.direccion}>{lugar.direccion}</Text>
 
+      <Pressable
+        style={estilos.botonMapa}
+        accessibilityRole="button"
+        accessibilityLabel={`Ver ${lugar.nombre} en el mapa`}
+        onPress={() => router.push({ pathname: "/mapa", params: { lugarId: lugar.id } })}
+      >
+        <Text style={estilos.textoBotonMapa}>📍 Ver este lugar en el mapa</Text>
+      </Pressable>
+
       <Text style={estilos.seccion}>Información de visita</Text>
 
       <Text style={estilos.dato}>
@@ -216,6 +225,18 @@ export default function DetalleLugar() {
 
       {lugar.sitioWeb && (
         <Text style={estilos.dato}>Sitio web: {lugar.sitioWeb}</Text>
+      )}
+
+      {lugar.audioguia && (
+        <Pressable
+          onPress={() => router.push({ pathname: "/audioguias", params: { lugarId: lugar.id } })}
+          style={estilos.botonGaleria}
+          accessibilityRole="button"
+        >
+          <Text style={{ color: "#1D4ED8", fontWeight: "700", textAlign: "center" }}>
+            Escuchar audioguía de este lugar
+          </Text>
+        </Pressable>
       )}
 
       <Text style={estilos.seccion}>Horarios</Text>
@@ -251,6 +272,19 @@ const estilos = StyleSheet.create({
   direccion: {
     fontSize: 14,
     color: "#666666",
+  },
+  botonMapa: {
+    marginTop: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: "#2563EB",
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  textoBotonMapa: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
   },
   id: {
     fontSize: 14,

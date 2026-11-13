@@ -1,8 +1,8 @@
 import type { LocationObjectCoords } from "expo-location";
 import * as Network from "expo-network";
-import { router, useIsFocused } from "expo-router";
+import { router, useIsFocused, useLocalSearchParams } from "expo-router";
 import { Magnetometer } from "expo-sensors";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Platform,
@@ -29,6 +29,9 @@ import type { Categoria } from "@/tipos/categoria";
 import type { Lugar } from "@/tipos/lugar";
 
 export default function MapaScreen() {
+  const { lugarId } = useLocalSearchParams<{ lugarId?: string }>();
+  const mapaRef = useRef<MapView>(null);
+  const [mapaListo, setMapaListo] = useState(false);
   const estadoRed = Network.useNetworkState();
   const sinConexion =
     estadoRed.isConnected === false || estadoRed.isInternetReachable === false;
@@ -138,6 +141,28 @@ export default function MapaScreen() {
       activo = false;
     };
   }, [intentoCarga]);
+
+  useEffect(() => {
+    if (!isFocused || !lugarId) return;
+    const destino = lugares.find((lugar) => lugar.id === lugarId);
+    if (!destino) return;
+
+    setCategoriaSeleccionada(null);
+    setLugarSeleccionadoId(destino.id);
+
+    if (mapaListo) {
+      mapaRef.current?.animateToRegion({
+        latitude: destino.coordenadas.latitud,
+        longitude: destino.coordenadas.longitud,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      }, 500);
+    }
+  }, [isFocused, lugarId, lugares, mapaListo]);
+
+  const destinoInicial = lugarId
+    ? lugares.find((lugar) => lugar.id === lugarId)
+    : undefined;
 
   const lugaresFiltrados = lugares.filter((lugar) => {
     return (
@@ -383,10 +408,17 @@ export default function MapaScreen() {
       ) : (
         <>
           <MapView
+            ref={mapaRef}
+            onMapReady={() => setMapaListo(true)}
             provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
             showsUserLocation={ubicacion !== null}
             style={styles.mapa}
-            initialRegion={{
+            initialRegion={destinoInicial ? {
+              latitude: destinoInicial.coordenadas.latitud,
+              longitude: destinoInicial.coordenadas.longitud,
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
+            } : {
               latitude: -32.223,
               longitude: -58.18,
               latitudeDelta: 0.16,

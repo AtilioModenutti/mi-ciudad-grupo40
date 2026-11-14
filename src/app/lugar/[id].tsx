@@ -13,7 +13,11 @@ import {
 import { useFavoritos } from "@/contextos/FavoritosContexto";
 import { obtenerCategorias } from "@/servicios/categorias";
 import { Categoria } from "@/tipos/categoria";
-import { obtenerLugarPorId } from "../../servicios/lugares";
+import {
+  obtenerInformacionHorariosTemporada,
+  obtenerLugarConOrigen,
+  type InformacionHorariosTemporada,
+} from "../../servicios/lugares";
 import type { Lugar } from "../../tipos/lugar";
 
 export default function DetalleLugar() {
@@ -33,17 +37,31 @@ export default function DetalleLugar() {
   const [cargando, setCargando] = useState(true);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [indiceImagen, setIndiceImagen] = useState(0);
+  const [desdeCache, setDesdeCache] = useState(false);
+  const [informacionHorarios, setInformacionHorarios] =
+    useState<InformacionHorariosTemporada | null>(null);
 
   useEffect(() => {
     let activo = true;
     setCargando(true);
     setError("");
+    setInformacionHorarios(null);
 
-    obtenerLugarPorId(id)
+    obtenerLugarConOrigen(id)
       .then((resultado) => {
         if (activo) {
-          setLugar(resultado);
+          setLugar(resultado.lugar);
+          setDesdeCache(resultado.desdeCache);
           setIndiceImagen(0);
+          if (!resultado.desdeCache && resultado.lugar) {
+            obtenerInformacionHorariosTemporada(id)
+              .then((informacion) => {
+                if (activo) setInformacionHorarios(informacion);
+              })
+              .catch(() => {
+                if (activo) setInformacionHorarios(null);
+              });
+          }
         }
       })
       .catch(() => {
@@ -141,7 +159,9 @@ export default function DetalleLugar() {
         </View>
       ) : (
         <View style={estilos.sinImagen}>
-          <Text style={estilos.descripcion}>No hay fotografías disponibles.</Text>
+          <Text style={estilos.descripcion}>
+            No hay fotografías disponibles.
+          </Text>
         </View>
       )}
 
@@ -200,7 +220,9 @@ export default function DetalleLugar() {
         style={estilos.botonMapa}
         accessibilityRole="button"
         accessibilityLabel={`Ver ${lugar.nombre} en el mapa`}
-        onPress={() => router.push({ pathname: "/mapa", params: { lugarId: lugar.id } })}
+        onPress={() =>
+          router.push({ pathname: "/mapa", params: { lugarId: lugar.id } })
+        }
       >
         <Text style={estilos.textoBotonMapa}>📍 Ver este lugar en el mapa</Text>
       </Pressable>
@@ -229,7 +251,12 @@ export default function DetalleLugar() {
 
       {lugar.audioguia && (
         <Pressable
-          onPress={() => router.push({ pathname: "/audioguias", params: { lugarId: lugar.id } })}
+          onPress={() =>
+            router.push({
+              pathname: "/audioguias",
+              params: { lugarId: lugar.id },
+            })
+          }
           style={estilos.botonGaleria}
           accessibilityRole="button"
         >
@@ -239,10 +266,40 @@ export default function DetalleLugar() {
         </Pressable>
       )}
 
-      <Text style={estilos.seccion}>Horarios</Text>
+      <Text style={estilos.seccion}>Horarios de visita</Text>
+
+      {informacionHorarios?.tieneTemporadas &&
+        informacionHorarios.temporadaVigente && (
+          <View style={estilos.bloqueTemporada}>
+            <Text style={estilos.tituloTemporada}>
+              Horario de {informacionHorarios.temporadaVigente}
+            </Text>
+            <Text style={estilos.detalleTemporada}>
+              {informacionHorarios.temporadaVigente === "verano"
+                ? "Diciembre a marzo"
+                : "Abril a noviembre"}
+            </Text>
+          </View>
+        )}
+
+      {informacionHorarios?.tieneTemporadas === false && (
+        <View style={estilos.bloqueTemporada}>
+          <Text style={estilos.tituloTemporada}>Horarios habituales</Text>
+          <Text style={estilos.detalleTemporada}>
+            Se mantienen durante todo el año.
+          </Text>
+        </View>
+      )}
+
+      {desdeCache && (
+        <Text style={estilos.avisoHorariosGuardados}>
+          Estos horarios están guardados en el teléfono y podrían no estar
+          actualizados.
+        </Text>
+      )}
 
       {lugar.horarios.length === 0 ? (
-        <Text style={estilos.dato}>Horarios no informados.</Text>
+        <Text style={estilos.dato}>No hay horarios disponibles.</Text>
       ) : (
         lugar.horarios.map((horario, index) => (
           <Text key={`${horario.dia}-${index}`} style={estilos.dato}>
@@ -257,29 +314,122 @@ export default function DetalleLugar() {
 const estilos = StyleSheet.create({
   contenedor: { flex: 1, backgroundColor: "#F6F8F5" },
   contenido: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 38 },
-  titulo: { flex: 1, fontSize: 27, lineHeight: 34, fontWeight: "800", color: "#244344" },
-  descripcion: { fontSize: 16, lineHeight: 24, color: "#4B6562", marginBottom: 15 },
+  titulo: {
+    flex: 1,
+    fontSize: 27,
+    lineHeight: 34,
+    fontWeight: "800",
+    color: "#244344",
+  },
+  descripcion: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: "#4B6562",
+    marginBottom: 15,
+  },
   direccion: { fontSize: 16, lineHeight: 23, color: "#526F6B" },
-  botonMapa: { marginTop: 16, minHeight: 54, paddingHorizontal: 16, backgroundColor: "#185F65", borderRadius: 12, justifyContent: "center", alignItems: "center" },
+  botonMapa: {
+    marginTop: 16,
+    minHeight: 54,
+    paddingHorizontal: 16,
+    backgroundColor: "#185F65",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   textoBotonMapa: { color: "#FFFFFF", fontSize: 16, fontWeight: "800" },
   id: { fontSize: 15, color: "#A43C39" },
   categoriaId: { fontSize: 15, color: "#287149" },
-  imagen: { width: "100%", height: 260, borderRadius: 16, marginBottom: 12, backgroundColor: "#DFEDE6" },
-  sinImagen: { height: 210, backgroundColor: "#E7F1EB", justifyContent: "center", alignItems: "center", borderRadius: 16, marginBottom: 16 },
-  seccion: { fontSize: 21, fontWeight: "800", marginTop: 23, marginBottom: 11, color: "#244344" },
+  imagen: {
+    width: "100%",
+    height: 260,
+    borderRadius: 16,
+    marginBottom: 12,
+    backgroundColor: "#DFEDE6",
+  },
+  sinImagen: {
+    height: 210,
+    backgroundColor: "#E7F1EB",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  seccion: {
+    fontSize: 21,
+    fontWeight: "800",
+    marginTop: 23,
+    marginBottom: 11,
+    color: "#244344",
+  },
   dato: { fontSize: 16, lineHeight: 24, color: "#49625E", marginBottom: 8 },
+  bloqueTemporada: {
+    backgroundColor: "#E7F1EC",
+    borderRadius: 12,
+    padding: 13,
+    marginBottom: 13,
+  },
+  tituloTemporada: { fontSize: 16, fontWeight: "800", color: "#185F65" },
+  detalleTemporada: { fontSize: 14, color: "#526F6B", marginTop: 3 },
+  avisoHorariosGuardados: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#855126",
+    marginBottom: 12,
+  },
   categoria: { fontSize: 16, fontWeight: "800", marginBottom: 12 },
   galeria: { marginBottom: 14 },
-  controlesGaleria: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 6 },
-  botonGaleria: { minHeight: 48, paddingHorizontal: 14, justifyContent: "center", borderRadius: 12, backgroundColor: "#E7F1EC", borderWidth: 1, borderColor: "#C5DAD0" },
-  textoGaleria: { fontSize: 16, fontWeight: "800", color: "#185F65", textAlign: "center" },
+  controlesGaleria: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 6,
+  },
+  botonGaleria: {
+    minHeight: 48,
+    paddingHorizontal: 14,
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: "#E7F1EC",
+    borderWidth: 1,
+    borderColor: "#C5DAD0",
+  },
+  textoGaleria: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#185F65",
+    textAlign: "center",
+  },
   numeroGaleria: { fontSize: 16, color: "#56706E", fontWeight: "700" },
   botonDeshabilitado: { opacity: 0.35 },
-  encabezado: { flexDirection: "row", alignItems: "center", marginBottom: 13, gap: 12 },
-  avisoFavoritos: { backgroundColor: "#FFF1E0", padding: 13, borderRadius: 12, gap: 8, marginBottom: 12 },
+  encabezado: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 13,
+    gap: 12,
+  },
+  avisoFavoritos: {
+    backgroundColor: "#FFF1E0",
+    padding: 13,
+    borderRadius: 12,
+    gap: 8,
+    marginBottom: 12,
+  },
   avisoTexto: { fontSize: 15, lineHeight: 22, color: "#855126" },
-  enlace: { color: "#185F65", fontSize: 15, fontWeight: "800", paddingVertical: 5 },
-  botonCorazon: { minWidth: 48, minHeight: 48, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF1F4", borderRadius: 12 },
+  enlace: {
+    color: "#185F65",
+    fontSize: 15,
+    fontWeight: "800",
+    paddingVertical: 5,
+  },
+  botonCorazon: {
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF1F4",
+    borderRadius: 12,
+  },
   corazon: { fontSize: 30, color: "#7B8A82" },
   corazonActivo: { color: "#AA3757" },
 });

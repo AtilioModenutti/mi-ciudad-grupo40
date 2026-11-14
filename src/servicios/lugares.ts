@@ -105,15 +105,20 @@ export async function obtenerLugares(): Promise<
   }
 }
 
-export async function obtenerLugarPorId(id: string): Promise<Lugar | null> {
+export async function obtenerLugarConOrigen(id: string): Promise<{
+  lugar: Lugar | null;
+  desdeCache: boolean;
+}> {
   try {
     const respuesta = await consultarApi<RespuestaUno<Lugar>>(
       `/lugares/${encodeURIComponent(id)}`,
     );
 
-    return respuesta.datos;
+    return { lugar: respuesta.datos, desdeCache: false };
   } catch (error) {
-    if (error instanceof ErrorHttp && error.estado === 404) return null;
+    if (error instanceof ErrorHttp && error.estado === 404) {
+      return { lugar: null, desdeCache: false };
+    }
 
     if (
       error instanceof ErrorHttp &&
@@ -124,10 +129,20 @@ export async function obtenerLugarPorId(id: string): Promise<Lugar | null> {
     }
 
     const cache = await leerLugaresDeCache();
-    if (cache) return cache.datos.find((lugar) => lugar.id === id) ?? null;
+    if (cache) {
+      return {
+        lugar: cache.datos.find((lugar) => lugar.id === id) ?? null,
+        desdeCache: true,
+      };
+    }
 
     throw error;
   }
+}
+
+export async function obtenerLugarPorId(id: string): Promise<Lugar | null> {
+  const resultado = await obtenerLugarConOrigen(id);
+  return resultado.lugar;
 }
 
 export async function obtenerLugarPorCodigoQr(
@@ -156,4 +171,18 @@ export async function obtenerLugarPorCodigoQr(
 
     throw error;
   }
+}
+
+export interface InformacionHorariosTemporada {
+  tieneTemporadas: boolean;
+  temporadaVigente: "verano" | "invierno" | null;
+}
+
+export async function obtenerInformacionHorariosTemporada(
+  id: string,
+): Promise<InformacionHorariosTemporada> {
+  const respuesta = await consultarApi<
+    RespuestaUno<InformacionHorariosTemporada>
+  >(`/lugares/${encodeURIComponent(id)}/horarios-temporada`);
+  return respuesta.datos;
 }

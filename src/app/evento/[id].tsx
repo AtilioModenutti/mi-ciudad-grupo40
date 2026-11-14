@@ -30,6 +30,33 @@ function formatearEstado(estado: EstadoEvento) {
   }
 }
 
+function describirHorarioFin(inicioIso: string, finIso: string | null) {
+  if (!finIso) return { fin: null, duracion: null };
+
+  const inicio = new Date(inicioIso).getTime();
+  const fin = new Date(finIso).getTime();
+  if (!Number.isFinite(inicio) || !Number.isFinite(fin) || fin <= inicio) {
+    return { fin: null, duracion: null };
+  }
+
+  const minutos = Math.round((fin - inicio) / 60000);
+  const horas = Math.floor(minutos / 60);
+  const resto = minutos % 60;
+  let duracion: string;
+
+  if (horas > 0 && resto > 0) duracion = `${horas} h ${resto} min`;
+  else if (horas > 0) duracion = `${horas} h`;
+  else duracion = `${minutos} min`;
+
+  return {
+    fin: new Date(fin).toLocaleString("es-AR", {
+      dateStyle: "full",
+      timeStyle: "short",
+    }),
+    duracion,
+  };
+}
+
 export default function DetalleEventoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { usuario, tokenSesion, sesionBloqueada } = useSesion();
@@ -213,6 +240,7 @@ export default function DetalleEventoScreen() {
     );
 
   const estadoVisual = formatearEstado(evento.estado);
+  const horarioFin = describirHorarioFin(evento.inicio, evento.fin);
   const ubicacion =
     lugarAsociado?.nombre ||
     (cargandoLugar ? "Consultando lugar..." : "") ||
@@ -262,6 +290,22 @@ export default function DetalleEventoScreen() {
                 dateStyle: "full",
                 timeStyle: "short",
               })}
+            </Text>
+          </View>
+          <View style={styles.filaDato}>
+            <Text style={styles.iconoDato}>🕒</Text>
+            <Text style={styles.textoDato}>
+              {horarioFin.fin
+                ? `Finaliza: ${horarioFin.fin}`
+                : "Finalización no informada"}
+            </Text>
+          </View>
+          <View style={styles.filaDato}>
+            <Text style={styles.iconoDato}>⏱️</Text>
+            <Text style={styles.textoDato}>
+              {horarioFin.duracion
+                ? `Duración: ${horarioFin.duracion}`
+                : "Duración no informada"}
             </Text>
           </View>
           <View style={styles.filaDato}>

@@ -58,14 +58,11 @@ export default function VisitaManual() {
         "manual",
         nota.trim() || null,
       );
-      // La visita ya está guardada; la vibración es opcional si la build no incluye este módulo.
       try {
         await Haptics.notificationAsync(
           Haptics.NotificationFeedbackType.Success,
         );
-      } catch {
-        // No impedir la navegación ni mostrar un error por una vibración no disponible.
-      }
+      } catch {}
       router.replace("/visitas");
     } catch (fallo) {
       Alert.alert(
@@ -102,6 +99,7 @@ export default function VisitaManual() {
         placeholder="Buscar lugar..."
         value={busqueda}
         onChangeText={setBusqueda}
+        placeholderTextColor="#81918E"
       />
       <TextInput
         style={[estilos.campo, estilos.nota]}
@@ -110,6 +108,7 @@ export default function VisitaManual() {
         textAlignVertical="top"
         value={nota}
         onChangeText={setNota}
+        placeholderTextColor="#81918E"
       />
       {cargando && <ActivityIndicator />}
       {error !== "" && <Text style={estilos.error}>{error}</Text>}

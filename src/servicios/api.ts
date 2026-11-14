@@ -1,3 +1,5 @@
+import axios from "axios";
+
 export type RespuestaLista<T> = {
   datos: T[];
   meta: {
@@ -22,38 +24,107 @@ export class ErrorHttp extends Error {
   }
 }
 
-export async function consultarApi<T>(ruta: string): Promise<T> {
-  const base = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, "");
+const clienteApi = axios.create({
+  adapter: "fetch",
+  baseURL: process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, ""),
+  timeout: 20000,
+  headers: { Accept: "application/json" },
+});
 
-  if (!base) {
+function verificarConfiguracion(): void {
+  if (!process.env.EXPO_PUBLIC_API_URL?.trim()) {
     throw new Error("Falta configurar EXPO_PUBLIC_API_URL.");
   }
+}
 
-  let respuesta: Response;
-  try {
-    respuesta = await fetch(`${base}${ruta}`);
-  } catch {
+function manejarError(error: unknown): never {
+  if (axios.isAxiosError(error)) {
+    if (error.response) {
+      const estado = error.response.status;
+      const contenido = error.response.data as
+        | { error?: { mensaje?: unknown } }
+        | undefined;
+      const mensaje =
+        typeof contenido?.error?.mensaje === "string"
+          ? contenido.error.mensaje
+          : `La API devolvió el error ${estado}.`;
+
+      throw new ErrorHttp(estado, mensaje);
+    }
+
     throw new Error("No se pudo conectar con la API.");
   }
 
-  if (!respuesta.ok) {
-    let mensaje = `La API devolvió el error ${respuesta.status}.`;
+  throw error;
+}
 
+function leerRespuestaJson<T>(
+  contenido: unknown,
+  ruta: string,
+  estado: number,
+  tipoContenido?: string,
+): T {
+  let datos: unknown = contenido;
+
+  if (typeof datos === "string") {
     try {
-      const contenido: { error?: { mensaje?: string } } =
-        await respuesta.json();
-      if (typeof contenido.error?.mensaje === "string") {
-        mensaje = contenido.error.mensaje;
-      }
-    } catch {}
-
-    throw new ErrorHttp(respuesta.status, mensaje);
+      datos = JSON.parse(datos);
+    } catch {
+      throw new Error(
+        `La API devolvió contenido que no es JSON válido en ${ruta} (HTTP ${estado}).`,
+      );
+    }
   }
 
+  if (datos === null || typeof datos !== "object" || Array.isArray(datos)) {
+    if (__DEV__) {
+      console.warn("[Mi Colón] Respuesta HTTP inesperada:", {
+        ruta,
+        estado,
+        tipo: contenido === null ? "null" : typeof contenido,
+        tipoContenido: tipoContenido ?? "desconocido",
+      });
+    }
+    throw new Error(
+      `La API devolvió una respuesta no válida en ${ruta} (HTTP ${estado}).`,
+    );
+  }
+
+  return datos as T;
+}
+
+export async function enviarApiPublica<T>(
+  ruta: string,
+  cuerpo: unknown,
+): Promise<T> {
+  verificarConfiguracion();
+
   try {
-    return (await respuesta.json()) as T;
-  } catch {
-    throw new Error("La API devolvió una respuesta no válida.");
+    const respuesta = await clienteApi.post<T>(ruta, cuerpo);
+    return leerRespuestaJson<T>(
+      respuesta.data,
+      ruta,
+      respuesta.status,
+      String(respuesta.headers["content-type"] ?? "desconocido"),
+    );
+  } catch (error) {
+    manejarError(error);
+  }
+}
+
+export async function consultarApi<T>(ruta: string): Promise<T> {
+  verificarConfiguracion();
+
+  try {
+    const respuesta = await clienteApi.get<T>(ruta);
+    return leerRespuestaJson<T>(
+      respuesta.data,
+      ruta,
+      respuesta.status,
+      String(respuesta.headers["content-type"] ?? "desconocido"),
+    );
+  } catch (error) {
+    manejarError(error);
   }
 }
 
@@ -63,37 +134,25 @@ export async function solicitarApiConSesion<T>(
   metodo: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET",
   cuerpo?: unknown,
 ): Promise<T | null> {
-  const base = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, "");
-  if (!base) throw new Error("Falta configurar EXPO_PUBLIC_API_URL.");
+  verificarConfiguracion();
   if (!token) throw new Error("Necesitás iniciar sesión para continuar.");
 
-  let respuesta: Response;
   try {
-    respuesta = await fetch(`${base}${ruta}`, {
+    const respuesta = await clienteApi.request<T>({
+      url: ruta,
       method: metodo,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        ...(cuerpo === undefined ? {} : { "Content-Type": "application/json" }),
-      },
-      ...(cuerpo === undefined ? {} : { body: JSON.stringify(cuerpo) }),
+      headers: { Authorization: `Bearer ${token}` },
+      ...(cuerpo === undefined ? {} : { data: cuerpo }),
     });
-  } catch {
-    throw new Error("No se pudo conectar con la API.");
-  }
 
-  if (!respuesta.ok) {
-    let mensaje = `La API devolvió el error ${respuesta.status}.`;
-    try {
-      const contenido: { error?: { mensaje?: string } } = await respuesta.json();
-      if (contenido.error?.mensaje) mensaje = contenido.error.mensaje;
-    } catch {}
-    throw new ErrorHttp(respuesta.status, mensaje);
-  }
-
-  if (respuesta.status === 204) return null;
-  try {
-    return (await respuesta.json()) as T;
-  } catch {
-    throw new Error("La API devolvió una respuesta no válida.");
+    if (respuesta.status === 204) return null;
+    return leerRespuestaJson<T>(
+      respuesta.data,
+      ruta,
+      respuesta.status,
+      String(respuesta.headers["content-type"] ?? "desconocido"),
+    );
+  } catch (error) {
+    manejarError(error);
   }
 }

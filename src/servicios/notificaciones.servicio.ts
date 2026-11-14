@@ -67,7 +67,7 @@ export const NotificacionesServicio = {
     const momento = Math.max(inicio - 30 * 60_000, ahora + 60_000);
     const id = await Notifications.scheduleNotificationAsync({
       content: {
-        title: "Recordatorio de Mi Ciudad",
+        title: "Recordatorio de Mi Colón",
         body: `Pronto comienza: ${titulo}`,
         data: { eventoId, usuarioId },
         sound: "default",

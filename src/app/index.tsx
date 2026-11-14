@@ -283,17 +283,28 @@ export default function Inicio() {
         }
         ListHeaderComponent={
           <View>
-            {/* Bienvenida turística: corta, para dejar espacio al catálogo. */}
             <View style={estilos.hero}>
               <View style={estilos.aroDecorativo} pointerEvents="none" />
-              <Text style={estilos.ubicacion}>📍 COLÓN · ENTRE RÍOS</Text>
-              <Text style={estilos.titulo}>Mi Ciudad</Text>
+              <View style={estilos.heroFila}>
+                <View style={estilos.heroLogoFondo}>
+                  <Image
+                    source={require("../../assets/branding/mi-colon-simbolo.png")}
+                    style={estilos.heroLogo}
+                    resizeMode="contain"
+                    accessibilityLabel="Logo de Mi Colón: río, sol y ubicación"
+                  />
+                </View>
+                <View style={estilos.heroTitulos}>
+                  <Text style={estilos.ubicacion}>COLÓN · ENTRE RÍOS</Text>
+                  <Text style={estilos.titulo}>Mi Colón</Text>
+                </View>
+              </View>
               <Text style={estilos.subtitulo}>
-                Descubrí lugares, historias y experiencias para disfrutar.
+                Tu guía para descubrir Colón. Lugares, historias y experiencias
+                para disfrutar.
               </Text>
             </View>
 
-            {/* La cuenta se expande solo cuando el usuario necesita modificarla. */}
             {cargandoSesion ? (
               <View style={estilos.cuentaCompacta}>
                 <ActivityIndicator color="#16666B" />
@@ -402,7 +413,7 @@ export default function Inicio() {
                 style={estilos.cuentaCompacta}
                 onPress={() => router.push("/ingresar")}
                 accessibilityRole="button"
-                accessibilityLabel="Ingresar a Mi Ciudad"
+                accessibilityLabel="Ingresar a Mi Colón"
               >
                 <View style={estilos.avatar}>
                   <Text style={estilos.avatarTexto}>👤</Text>
@@ -504,7 +515,6 @@ export default function Inicio() {
               )}
             </View>
 
-            {/* Una sola fila horizontal, con las etiquetas siempre visibles en Android. */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -786,6 +796,23 @@ const estilos = StyleSheet.create({
     top: -50,
     opacity: 0.72,
   },
+  heroFila: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginBottom: 10,
+  },
+  heroLogoFondo: {
+    width: 78,
+    height: 78,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  heroLogo: { width: 70, height: 70 },
+  heroTitulos: { flex: 1, minWidth: 0 },
   ubicacion: {
     fontSize: 13,
     fontWeight: "800",
@@ -794,13 +821,7 @@ const estilos = StyleSheet.create({
     marginBottom: 7,
   },
   titulo: { fontSize: 32, lineHeight: 38, fontWeight: "800", color: "#FFFFFF" },
-  subtitulo: {
-    marginTop: 5,
-    fontSize: 16,
-    lineHeight: 22,
-    color: "#EDF5EE",
-    maxWidth: 275,
-  },
+  subtitulo: { marginTop: 4, fontSize: 16, lineHeight: 23, color: "#EDF5EE" },
   cuentaCompacta: {
     flexDirection: "row",
     alignItems: "center",

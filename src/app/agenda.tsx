@@ -159,8 +159,6 @@ export default function AgendaScreen() {
       if (!usuario || !tokenSesion || sesionBloqueada) {
         setGuardados([]);
         setEventosGuardados([]);
-        // Al bloquear con biometría se conserva la pestaña elegida.
-        // Solo se vuelve a Próximos cuando ya no hay una sesión bloqueada.
         if (!sesionBloqueada) setSoloGuardados(false);
         setPushRegistrado(false);
         return () => {

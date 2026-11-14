@@ -31,7 +31,7 @@ export default function Visitas() {
   useFocusEffect(
     useCallback(() => {
       let activo = true;
-      setVisitas([]); // No mostrar visitas del usuario anterior al cambiar de cuenta.
+      setVisitas([]);
       setNombres({});
       setError("");
       if (!usuarioId)
@@ -45,7 +45,6 @@ export default function Visitas() {
           const locales = await obtenerVisitas(usuarioId!);
           if (activo) setVisitas(locales);
 
-          // El servicio también sirve sin conexión, usando las visitas guardadas.
           if (conectado && token) {
             const resultado = await sincronizarVisitas(usuarioId!, token);
             if (activo) {

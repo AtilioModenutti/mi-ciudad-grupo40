@@ -19,7 +19,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   plugins.push([
     "expo-notifications",
     {
-      color: "#2563EB",
+      color: "#185F65",
     },
   ]);
 
@@ -34,7 +34,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   return {
     ...config,
-    name: config.name ?? "mi-ciudad",
+    name: config.name ?? "Mi Colón",
     slug: config.slug ?? "mi-ciudad",
     android: {
       ...(config.android ?? {}),

@@ -1,8 +1,18 @@
 import * as Location from "expo-location";
 
-export async function obtenerUbicacionActual(): Promise<Location.LocationObjectCoords | null> {
+export async function obtenerUbicacionActual(
+  ejecutarActividadNativa?: <T>(accion: () => Promise<T>) => Promise<T>,
+): Promise<Location.LocationObjectCoords | null> {
   try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
+    const permisoActual = await Location.getForegroundPermissionsAsync();
+    const permiso = permisoActual.granted
+      ? permisoActual
+      : ejecutarActividadNativa
+        ? await ejecutarActividadNativa(() =>
+            Location.requestForegroundPermissionsAsync(),
+          )
+        : await Location.requestForegroundPermissionsAsync();
+    const { status } = permiso;
 
     if (status !== "granted") {
       return null;

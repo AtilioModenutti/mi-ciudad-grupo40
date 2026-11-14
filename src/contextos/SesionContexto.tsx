@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import {
   createContext,
   useContext,
@@ -9,8 +10,8 @@ import {
 import { AppState } from "react-native";
 
 import { obtenerUsuarioActual } from "@/servicios/autenticacion";
-import { NotificacionesServicio } from "@/servicios/notificaciones.servicio";
 import { comprobarBiometria, verificarBiometria } from "@/servicios/biometria";
+import { NotificacionesServicio } from "@/servicios/notificaciones.servicio";
 import { obtenerBiometriaHabilitada } from "@/servicios/preferencias-biometria";
 import { eliminarToken, guardarToken, obtenerToken } from "@/servicios/sesion";
 import type { SesionApi, UsuarioApi } from "@/tipos/autenticacion";
@@ -26,6 +27,7 @@ type SesionContextoTipo = {
   desbloquearSesion: () => Promise<void>;
   actualizarBiometria: (habilitada: boolean) => void;
   tokenSesion: string | null;
+  ejecutarActividadNativa: <T>(accion: () => Promise<T>) => Promise<T>;
 };
 
 const ContextoSesion = createContext<SesionContextoTipo | undefined>(undefined);
@@ -39,6 +41,23 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
   const [biometriaActiva, setBiometriaActiva] = useState(false);
   const [tokenSesion, setTokenSesion] = useState<string | null>(null);
   const revisionSesion = useRef(0);
+  const actividadesNativas = useRef(0);
+  const redirigirAlDesbloqueo = useRef(false);
+  const temporizadorBloqueo = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const inicioSegundoPlano = useRef<number | null>(null);
+
+  async function ejecutarActividadNativa<T>(
+    accion: () => Promise<T>,
+  ): Promise<T> {
+    actividadesNativas.current += 1;
+    try {
+      return await accion();
+    } finally {
+      actividadesNativas.current = Math.max(0, actividadesNativas.current - 1);
+    }
+  }
 
   useEffect(() => {
     let activo = true;
@@ -89,23 +108,77 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // App a segundo plano
   useEffect(() => {
+    function cancelarBloqueoPendiente() {
+      if (temporizadorBloqueo.current !== null) {
+        clearTimeout(temporizadorBloqueo.current);
+        temporizadorBloqueo.current = null;
+      }
+    }
+
+    function bloquearSesion() {
+      revisionSesion.current += 1;
+      setUsuario(null);
+      setTokenSesion(null);
+      setSesionBloqueada(true);
+      redirigirAlDesbloqueo.current = true;
+    }
+
     const suscripcion = AppState.addEventListener("change", (estado) => {
-      if (
-        estado === "background" &&
-        biometriaActiva &&
-        usuario !== null &&
-        !verificandoBiometria
-      ) {
-        revisionSesion.current += 1;
-        setUsuario(null);
-        setTokenSesion(null);
-        setSesionBloqueada(true);
+      if (estado === "background") {
+        cancelarBloqueoPendiente();
+        inicioSegundoPlano.current = null;
+        if (
+          !biometriaActiva ||
+          usuario === null ||
+          verificandoBiometria ||
+          actividadesNativas.current > 0
+        ) {
+          return;
+        }
+
+        inicioSegundoPlano.current = Date.now();
+        temporizadorBloqueo.current = setTimeout(() => {
+          temporizadorBloqueo.current = null;
+          if (
+            AppState.currentState === "background" &&
+            actividadesNativas.current === 0
+          ) {
+            bloquearSesion();
+          }
+        }, 600);
+        return;
+      }
+
+      if (estado === "active") {
+        const duracion =
+          inicioSegundoPlano.current === null
+            ? 0
+            : Date.now() - inicioSegundoPlano.current;
+        inicioSegundoPlano.current = null;
+        cancelarBloqueoPendiente();
+
+        if (
+          duracion >= 600 &&
+          biometriaActiva &&
+          usuario !== null &&
+          !verificandoBiometria &&
+          actividadesNativas.current === 0
+        ) {
+          bloquearSesion();
+        }
+
+        if (redirigirAlDesbloqueo.current) {
+          redirigirAlDesbloqueo.current = false;
+          router.replace("/");
+        }
       }
     });
 
-    return () => suscripcion.remove();
+    return () => {
+      cancelarBloqueoPendiente();
+      suscripcion.remove();
+    };
   }, [biometriaActiva, usuario, verificandoBiometria]);
 
   async function activarSesion(sesion: SesionApi) {
@@ -138,12 +211,18 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
           await Promise.race([
             Promise.all([
               NotificacionesServicio.cancelarRecordatoriosDeUsuario(usuario.id),
-              NotificacionesServicio.eliminarDispositivoDeApi(tokenSesion, usuario.id),
+              NotificacionesServicio.eliminarDispositivoDeApi(
+                tokenSesion,
+                usuario.id,
+              ),
             ]),
             new Promise<void>((resolver) => setTimeout(resolver, 2500)),
           ]);
         } catch (error) {
-          console.warn("No se pudo desvincular el dispositivo al cerrar sesión:", error);
+          console.warn(
+            "No se pudo desvincular el dispositivo al cerrar sesión:",
+            error,
+          );
         }
       }
 
@@ -249,6 +328,7 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
         desbloquearSesion,
         actualizarBiometria,
         tokenSesion,
+        ejecutarActividadNativa,
       }}
     >
       {children}

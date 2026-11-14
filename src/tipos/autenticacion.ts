@@ -9,12 +9,6 @@ export type DatosRegistro = {
   contrasenia: string;
 };
 
-export type Usuario = {
-  id: string;
-  nombre: string;
-  correo: string;
-};
-
 export type UsuarioApi = {
   id: string;
   nombre: string;
@@ -32,16 +26,4 @@ export type UsuarioApi = {
 export type SesionApi = {
   token: string;
   usuario: UsuarioApi;
-};
-
-export type RespuestaUno<T> = {
-  datos: T;
-  meta: null;
-};
-
-export type RespuestaError = {
-  error: {
-    codigo: string;
-    mensaje: string;
-  };
 };

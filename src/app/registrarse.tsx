@@ -1,7 +1,14 @@
 import { registrarUsuario } from "@/servicios/autenticacion";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput } from "react-native";
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 export default function Registrarse() {
@@ -75,8 +82,18 @@ export default function Registrarse() {
       keyboardShouldPersistTaps="handled"
       bottomOffset={60}
     >
-      <Text style={estilos.marca}>MI CIUDAD · COLÓN</Text>
-      <Text style={estilos.titulo}>Crear cuenta</Text>
+      <View style={estilos.cabeceraMarca}>
+        <Image
+          source={require("../../assets/branding/mi-colon-simbolo.png")}
+          style={estilos.logo}
+          resizeMode="contain"
+          accessibilityLabel="Logo de Mi Colón"
+        />
+        <View style={estilos.cabeceraTexto}>
+          <Text style={estilos.marca}>MI COLÓN · ENTRE RÍOS</Text>
+          <Text style={estilos.titulo}>Crear cuenta</Text>
+        </View>
+      </View>
 
       <Text style={estilos.subtitulo}>
         Registrate para guardar tus favoritos y recorridos.
@@ -88,6 +105,7 @@ export default function Registrarse() {
         placeholder="Tu nombre"
         value={nombre}
         onChangeText={setNombre}
+        placeholderTextColor="#81918E"
       />
 
       <Text style={estilos.etiqueta}>Correo electrónico</Text>
@@ -99,6 +117,7 @@ export default function Registrarse() {
         autoCorrect={false}
         value={correo}
         onChangeText={setCorreo}
+        placeholderTextColor="#81918E"
       />
 
       <Text style={estilos.etiqueta}>Contraseña</Text>
@@ -108,6 +127,7 @@ export default function Registrarse() {
         secureTextEntry
         value={contrasena}
         onChangeText={setContrasena}
+        placeholderTextColor="#81918E"
       />
 
       <Text style={estilos.etiqueta}>Confirmar contraseña</Text>
@@ -117,6 +137,7 @@ export default function Registrarse() {
         secureTextEntry
         value={confirmarContrasena}
         onChangeText={setConfirmarContrasena}
+        placeholderTextColor="#81918E"
       />
 
       {mensaje !== "" && <Text style={estilos.mensaje}>{mensaje}</Text>}
@@ -146,6 +167,14 @@ const estilos = StyleSheet.create({
     paddingTop: 28,
     paddingBottom: 46,
   },
+  cabeceraMarca: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 8,
+  },
+  cabeceraTexto: { flex: 1, minWidth: 0 },
+  logo: { width: 70, height: 70 },
   marca: {
     color: "#185F65",
     fontSize: 14,

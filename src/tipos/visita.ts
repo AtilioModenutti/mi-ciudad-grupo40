@@ -1,4 +1,3 @@
-/** Modelo de una visita: coincide con los campos del PRD y de la API. */
 export type OrigenVisita = "qr" | "gps" | "manual";
 
 export interface Visita {
@@ -10,6 +9,5 @@ export interface Visita {
   fotoUri: string | null;
   nota: string | null;
   sincronizada: boolean;
-  /** Copia en el dispositivo para seguir mostrando la foto sin conexión. */
   fotoLocalUri?: string | null;
 }

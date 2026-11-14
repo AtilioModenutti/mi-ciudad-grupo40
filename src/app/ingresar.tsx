@@ -2,7 +2,14 @@ import { useSesion } from "@/contextos/SesionContexto";
 import { iniciarSesion } from "@/servicios/autenticacion";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 export default function Ingresar() {
@@ -59,8 +66,14 @@ export default function Ingresar() {
       bottomOffset={60}
     >
       <View style={estilos.contenido}>
+        <Image
+          source={require("../../assets/branding/mi-colon-simbolo.png")}
+          style={estilos.logo}
+          resizeMode="contain"
+          accessibilityLabel="Logo de Mi Colón"
+        />
         <Text style={estilos.marca}>COLÓN · ENTRE RÍOS</Text>
-        <Text style={estilos.titulo}>Mi Ciudad</Text>
+        <Text style={estilos.titulo}>Mi Colón</Text>
         <Text style={estilos.subtitulo}>
           Ingresá para guardar tus favoritos y recorridos.
         </Text>
@@ -74,6 +87,7 @@ export default function Ingresar() {
           autoCorrect={false}
           value={correo}
           onChangeText={setCorreo}
+          placeholderTextColor="#81918E"
         />
 
         <Text style={estilos.etiqueta}>Contraseña</Text>
@@ -84,6 +98,7 @@ export default function Ingresar() {
           secureTextEntry
           value={contrasenia}
           onChangeText={setContrasenia}
+          placeholderTextColor="#81918E"
         />
 
         {mensaje !== "" && <Text style={estilos.mensaje}>{mensaje}</Text>}
@@ -125,6 +140,7 @@ const estilos = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 25,
   },
+  logo: { width: 116, height: 116, alignSelf: "center", marginBottom: 8 },
   marca: {
     color: "#185F65",
     fontSize: 14,
@@ -156,11 +172,11 @@ const estilos = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: "#C9DBD2",
-    backgroundColor: "#FAFCFA",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    paddingHorizontal: 14,
     minHeight: 54,
-    marginBottom: 18,
+    paddingHorizontal: 14,
+    marginBottom: 17,
     fontSize: 16,
     color: "#243F3F",
   },

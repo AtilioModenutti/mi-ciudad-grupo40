@@ -55,14 +55,11 @@ export default function VisitaProximidad() {
         return;
       }
       await registrarVisita(usuario.id, cercano.id, "gps");
-      // La visita ya está guardada; la vibración es opcional si la build no incluye este módulo.
       try {
         await Haptics.notificationAsync(
           Haptics.NotificationFeedbackType.Success,
         );
-      } catch {
-        // No impedir la navegación ni mostrar un error por una vibración no disponible.
-      }
+      } catch {}
       Alert.alert(
         "Visita registrada",
         `Registraste una visita a ${cercano.nombre}.`,

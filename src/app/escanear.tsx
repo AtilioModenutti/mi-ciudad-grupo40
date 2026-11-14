@@ -30,17 +30,13 @@ export default function Escanear() {
       const lugar = await obtenerLugarPorCodigoQr(data);
 
       if (lugar) {
-        // Un invitado puede consultar el QR; la visita solo se guarda con sesión.
         if (usuario && !sesionBloqueada) {
           await registrarVisita(usuario.id, lugar.id, "qr");
-          // La visita ya está guardada; la vibración es opcional si la build no incluye este módulo.
           try {
             await Haptics.notificationAsync(
               Haptics.NotificationFeedbackType.Success,
             );
-          } catch {
-            // No impedir la navegación ni mostrar un error por una vibración no disponible.
-          }
+          } catch {}
         }
         router.replace({
           pathname: "/lugar/[id]",

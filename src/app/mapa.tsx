@@ -1,3 +1,4 @@
+import { useAvisosProximidad } from "@/contextos/AvisosProximidadContexto";
 import { useFavoritos } from "@/contextos/FavoritosContexto";
 import { useSesion } from "@/contextos/SesionContexto";
 import type { LocationObjectCoords } from "expo-location";
@@ -7,6 +8,7 @@ import { Magnetometer } from "expo-sensors";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -32,7 +34,16 @@ import type { Lugar } from "@/tipos/lugar";
 
 export default function MapaScreen() {
   const { lugarId } = useLocalSearchParams<{ lugarId?: string }>();
-  const { sesionBloqueada } = useSesion();
+  const { usuario, sesionBloqueada, ejecutarActividadNativa } = useSesion();
+  const {
+    habilitado: avisosActivos,
+    radioMetros: radioAvisos,
+    cargando: gestionandoAvisos,
+    mensaje: mensajeAvisos,
+    activar: activarAvisos,
+    desactivar: desactivarAvisos,
+    cambiarRadio,
+  } = useAvisosProximidad();
   const { favoritos, favoritosListos, errorFavoritos, reintentarFavoritos } =
     useFavoritos();
   const mapaRef = useRef<MapView>(null);
@@ -58,6 +69,7 @@ export default function MapaScreen() {
   );
   const [mostrarCercanos, setMostrarCercanos] = useState(false);
   const [soloFavoritos, setSoloFavoritos] = useState(false);
+  const [mostrarConfigAvisos, setMostrarConfigAvisos] = useState(false);
   const isFocused = useIsFocused();
   const [rumbo, setRumbo] = useState<number | null>(null);
   const [sensorDisponible, setSensorDisponible] = useState<boolean | null>(
@@ -107,7 +119,7 @@ export default function MapaScreen() {
   useEffect(() => {
     let activo = true;
 
-    obtenerUbicacionActual()
+    obtenerUbicacionActual(ejecutarActividadNativa)
       .then((coordenadas) => {
         if (activo) {
           setUbicacion(coordenadas);
@@ -154,7 +166,6 @@ export default function MapaScreen() {
     if (!destino) return;
 
     setCategoriaSeleccionada(null);
-    // Un lugar abierto desde el catálogo debe seguir visible aunque el filtro estuviera activo.
     setSoloFavoritos(false);
     setLugarSeleccionadoId(destino.id);
 
@@ -283,7 +294,19 @@ export default function MapaScreen() {
 
   return (
     <View style={styles.contenedor}>
-      <Text style={styles.titulo}>Explorá el mapa</Text>
+      <View style={styles.encabezadoMapa}>
+        <Text style={styles.titulo}>Explorá el mapa</Text>
+        <Pressable
+          style={styles.accesoAvisos}
+          onPress={() => setMostrarConfigAvisos(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Configurar avisos por cercanía"
+        >
+          <Text style={styles.textoAccesoAvisos}>
+            {avisosActivos ? "Avisos activos" : "Avisos"}
+          </Text>
+        </Pressable>
+      </View>
       {(sinConexion || desdeCache) && (
         <View style={styles.avisoOffline}>
           <Text style={styles.textoAvisoOffline}>
@@ -381,6 +404,121 @@ export default function MapaScreen() {
           </Text>
         </Pressable>
       </View>
+
+      <Modal
+        visible={mostrarConfigAvisos}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMostrarConfigAvisos(false)}
+      >
+        <View style={styles.fondoModalAvisos}>
+          <View style={styles.panelAvisosCercania}>
+            <View style={styles.cabeceraAvisos}>
+              <Text style={styles.tituloAvisos}>Avisos por cercanía</Text>
+              <Pressable
+                onPress={() => setMostrarConfigAvisos(false)}
+                style={styles.cerrarAvisos}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar ajustes de avisos por cercanía"
+              >
+                <Text style={styles.textoAbrirAvisos}>Cerrar</Text>
+              </Pressable>
+            </View>
+            <ScrollView
+              contentContainerStyle={styles.contenidoModalAvisos}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={styles.estadoAvisosBreve}>
+                {avisosActivos ? `Activos · ${radioAvisos} m` : "Desactivados"}
+              </Text>
+              <Text style={styles.descripcionAvisos}>
+                Mi Colón puede avisarte cuando estés cerca de un lugar
+                turístico. Solo funciona con la aplicación abierta y no comparte
+                tu ubicación.
+              </Text>
+              {usuario && !sesionBloqueada ? (
+                <>
+                  <Pressable
+                    style={[
+                      styles.botonAvisos,
+                      avisosActivos && styles.botonAvisosActivo,
+                    ]}
+                    disabled={gestionandoAvisos}
+                    accessibilityRole="button"
+                    accessibilityState={{
+                      disabled: gestionandoAvisos,
+                      selected: avisosActivos,
+                    }}
+                    onPress={() =>
+                      void (avisosActivos
+                        ? desactivarAvisos()
+                        : activarAvisos())
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.textoBotonAvisos,
+                        avisosActivos && styles.textoBotonAvisosActivo,
+                      ]}
+                    >
+                      {gestionandoAvisos
+                        ? "Guardando..."
+                        : avisosActivos
+                          ? "Desactivar avisos cercanos"
+                          : "Activar avisos cercanos"}
+                    </Text>
+                  </Pressable>
+                  <Text style={styles.etiquetaRadioAvisos}>
+                    Avisarme dentro de:
+                  </Text>
+                  <View style={styles.filaRadioAvisos}>
+                    {([100, 250, 500] as const).map((radio) => (
+                      <Pressable
+                        key={radio}
+                        style={[
+                          styles.botonRadioAvisos,
+                          radioAvisos === radio &&
+                            styles.botonRadioAvisosActivo,
+                        ]}
+                        disabled={gestionandoAvisos}
+                        accessibilityRole="button"
+                        accessibilityState={{
+                          selected: radioAvisos === radio,
+                          disabled: gestionandoAvisos,
+                        }}
+                        onPress={() => void cambiarRadio(radio)}
+                      >
+                        <Text
+                          style={[
+                            styles.textoRadioAvisos,
+                            radioAvisos === radio &&
+                              styles.textoRadioAvisosActivo,
+                          ]}
+                        >
+                          {radio} m
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Text style={styles.leyendaAvisos}>
+                    Máximo un aviso por lugar al día; hasta tres en total y al
+                    menos 30 minutos entre avisos.
+                  </Text>
+                  {mensajeAvisos !== "" && (
+                    <Text style={styles.mensajeAvisos}>{mensajeAvisos}</Text>
+                  )}
+                </>
+              ) : (
+                <Text style={styles.mensajeAvisos}>
+                  {sesionBloqueada
+                    ? "Desbloqueá tu sesión para configurar los avisos."
+                    : "Iniciá sesión para activar los avisos por cercanía."}
+                </Text>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {errorFavoritos !== "" && (
         <View style={styles.avisoFavoritos}>
@@ -616,12 +754,13 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   titulo: {
-    fontSize: 24,
+    flex: 1,
+    fontSize: 23,
     fontWeight: "800",
     color: "#244243",
     marginBottom: 12,
     marginTop: 10,
-    marginHorizontal: 18,
+    marginLeft: 18,
   },
   mapa: { flex: 1 },
   barraFiltros: { flexGrow: 0, marginBottom: 10 },
@@ -666,6 +805,82 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#FFF1F2",
   },
+  encabezadoMapa: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingRight: 16,
+    gap: 6,
+  },
+  accesoAvisos: {
+    minHeight: 48,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    backgroundColor: "#E6F1EB",
+    borderRadius: 12,
+  },
+  textoAccesoAvisos: { fontSize: 15, fontWeight: "800", color: "#185F65" },
+  fondoModalAvisos: {
+    flex: 1,
+    backgroundColor: "rgba(15, 37, 39, 0.55)",
+    paddingHorizontal: 18,
+    justifyContent: "center",
+  },
+  panelAvisosCercania: {
+    maxHeight: "85%",
+    padding: 18,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    gap: 9,
+  },
+  cabeceraAvisos: {
+    flexDirection: "row",
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  contenidoModalAvisos: { gap: 14, paddingBottom: 8 },
+  cerrarAvisos: {
+    minHeight: 48,
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  tituloAvisos: { fontSize: 18, fontWeight: "800", color: "#244243" },
+  estadoAvisosBreve: { fontSize: 14, color: "#506E6B" },
+  textoAbrirAvisos: { fontSize: 15, fontWeight: "800", color: "#185F65" },
+  descripcionAvisos: { fontSize: 15, lineHeight: 22, color: "#506E6B" },
+  botonAvisos: {
+    minHeight: 48,
+    backgroundColor: "#EAF4EF",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 14,
+  },
+  botonAvisosActivo: { backgroundColor: "#185F65" },
+  textoBotonAvisos: { fontSize: 16, fontWeight: "800", color: "#185F65" },
+  textoBotonAvisosActivo: { color: "#FFFFFF" },
+  etiquetaRadioAvisos: { fontSize: 15, fontWeight: "700", color: "#244243" },
+  filaRadioAvisos: { flexDirection: "row", gap: 8 },
+  botonRadioAvisos: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#C9DAD2",
+    backgroundColor: "#F7FAF7",
+  },
+  botonRadioAvisosActivo: {
+    backgroundColor: "#185F65",
+    borderColor: "#185F65",
+  },
+  textoRadioAvisos: { fontSize: 16, fontWeight: "700", color: "#345758" },
+  textoRadioAvisosActivo: { color: "#FFFFFF" },
+  leyendaAvisos: { fontSize: 14, lineHeight: 20, color: "#5B706E" },
+  mensajeAvisos: { fontSize: 15, lineHeight: 21, color: "#946029" },
   panelIndicaciones: {
     paddingHorizontal: 16,
     paddingVertical: 15,

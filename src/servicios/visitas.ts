@@ -1,17 +1,27 @@
-import { fetch as expoFetch } from "expo/fetch";
 import { File } from "expo-file-system";
 import * as Network from "expo-network";
+import * as SQLite from "expo-sqlite";
 import Storage from "expo-sqlite/kv-store";
+import { fetch as expoFetch } from "expo/fetch";
 
-import { solicitarApiConSesion, type RespuestaLista, type RespuestaUno } from "@/servicios/api";
+import {
+  solicitarApiConSesion,
+  type RespuestaLista,
+  type RespuestaUno,
+} from "@/servicios/api";
 import type { OrigenVisita, Visita } from "@/tipos/visita";
 
-// Cada usuario guarda su propia cola de visitas, incluso sin internet.
 const CLAVE_VISITAS = "mi-ciudad-visitas-v2:";
+const NOMBRE_BASE = "mi-colon-visitas.db";
 const PAGINA_TAMANIO = 100;
 
-// Evita que la pantalla y el sincronizador global envíen la misma visita a la vez.
 const sincronizaciones = new Map<string, Promise<ResultadoSincronizacion>>();
+const usuariosMigrados = new Set<string>();
+let apertura: Promise<SQLite.SQLiteDatabase> | null = null;
+let colaEscrituras: Promise<void> = Promise.resolve();
+
+type FilaVisita = { contenido: string };
+type FilaMigracion = { usuario_id: string };
 
 type VisitaRemota = Omit<Visita, "fotoLocalUri">;
 
@@ -27,27 +37,187 @@ function clave(usuarioId: string): string {
 }
 
 function mensajeError(error: unknown): string {
-  return error instanceof Error ? error.message : "No se pudo completar la sincronización.";
+  return error instanceof Error
+    ? error.message
+    : "No se pudo completar la sincronización.";
 }
 
 function esFotoLocal(uri: string | null): boolean {
-  return Boolean(uri && (uri.startsWith("file:") || uri.startsWith("content:")));
+  return Boolean(
+    uri && (uri.startsWith("file:") || uri.startsWith("content:")),
+  );
 }
 
 function ordenar(visitas: Visita[]): Visita[] {
-  return [...visitas].sort((a, b) => new Date(b.fechaHora).getTime() - new Date(a.fechaHora).getTime());
+  return [...visitas].sort(
+    (a, b) => new Date(b.fechaHora).getTime() - new Date(a.fechaHora).getTime(),
+  );
+}
+
+function abrirBase(): Promise<SQLite.SQLiteDatabase> {
+  if (!apertura) {
+    apertura = (async () => {
+      const db = await SQLite.openDatabaseAsync(NOMBRE_BASE);
+      await db.execAsync(`
+        PRAGMA journal_mode = WAL;
+        CREATE TABLE IF NOT EXISTS visitas_locales (
+          usuario_id TEXT NOT NULL,
+          id TEXT NOT NULL,
+          contenido TEXT NOT NULL,
+          PRIMARY KEY (usuario_id, id)
+        );
+        CREATE TABLE IF NOT EXISTS migraciones_visitas (
+          usuario_id TEXT PRIMARY KEY NOT NULL,
+          migrado_en TEXT NOT NULL
+        );
+      `);
+      return db;
+    })().catch((error: unknown) => {
+      apertura = null;
+      throw error;
+    });
+  }
+  return apertura;
+}
+
+function encolarEscritura<T>(trabajo: () => Promise<T>): Promise<T> {
+  const siguiente = colaEscrituras.then(trabajo);
+  colaEscrituras = siguiente.then(
+    () => undefined,
+    () => undefined,
+  );
+  return siguiente;
+}
+
+async function migrarSiHaceFalta(usuarioId: string): Promise<void> {
+  if (usuariosMigrados.has(usuarioId)) return;
+
+  await encolarEscritura(async () => {
+    if (usuariosMigrados.has(usuarioId)) return;
+    const db = await abrirBase();
+    const migrada = await db.getFirstAsync<FilaMigracion>(
+      "SELECT usuario_id FROM migraciones_visitas WHERE usuario_id = ?",
+      usuarioId,
+    );
+
+    if (!migrada) {
+      const texto = await Storage.getItem(clave(usuarioId));
+      const datos: unknown = texto ? JSON.parse(texto) : [];
+      if (!Array.isArray(datos)) {
+        throw new Error(
+          "El historial anterior de visitas no es válido. No se modificaron sus datos.",
+        );
+      }
+      await db.withTransactionAsync(async () => {
+        for (const dato of datos) {
+          if (
+            !dato ||
+            typeof dato !== "object" ||
+            typeof dato.id !== "string" ||
+            typeof dato.usuarioId !== "string" ||
+            typeof dato.fechaHora !== "string" ||
+            typeof dato.lugarId !== "string"
+          ) {
+            throw new Error(
+              "El historial anterior contiene una visita no válida.",
+            );
+          }
+          if (dato.usuarioId !== usuarioId) continue;
+          await db.runAsync(
+            `INSERT OR IGNORE INTO visitas_locales (usuario_id, id, contenido)
+             VALUES (?, ?, ?)`,
+            usuarioId,
+            dato.id,
+            JSON.stringify(dato),
+          );
+        }
+        await db.runAsync(
+          "INSERT INTO migraciones_visitas (usuario_id, migrado_en) VALUES (?, ?)",
+          usuarioId,
+          new Date().toISOString(),
+        );
+      });
+    }
+    usuariosMigrados.add(usuarioId);
+  });
+}
+
+async function guardarUnaVisita(
+  db: SQLite.SQLiteDatabase,
+  visita: Visita,
+): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO visitas_locales (usuario_id, id, contenido) VALUES (?, ?, ?)
+     ON CONFLICT(usuario_id, id) DO UPDATE SET contenido = excluded.contenido`,
+    visita.usuarioId,
+    visita.id,
+    JSON.stringify(visita),
+  );
 }
 
 export async function obtenerVisitas(usuarioId: string): Promise<Visita[]> {
-  const contenido = await Storage.getItem(clave(usuarioId));
-  if (!contenido) return [];
-  const datos: unknown = JSON.parse(contenido);
-  if (!Array.isArray(datos)) throw new Error("Las visitas guardadas no son válidas.");
-  return ordenar((datos as Visita[]).filter((visita) => visita.usuarioId === usuarioId));
+  await migrarSiHaceFalta(usuarioId);
+  await colaEscrituras;
+  const db = await abrirBase();
+  const filas = await db.getAllAsync<FilaVisita>(
+    "SELECT contenido FROM visitas_locales WHERE usuario_id = ?",
+    usuarioId,
+  );
+  return ordenar(
+    filas
+      .map((fila) => JSON.parse(fila.contenido) as Visita)
+      .filter((visita) => visita.usuarioId === usuarioId),
+  );
 }
 
-async function guardarVisitas(usuarioId: string, visitas: Visita[]): Promise<void> {
-  await Storage.setItem(clave(usuarioId), JSON.stringify(ordenar(visitas)));
+async function marcarComoSincronizada(
+  usuarioId: string,
+  visitaId: string,
+  fotoOriginal: string | null,
+  fotoRemota: string | null,
+): Promise<void> {
+  await encolarEscritura(async () => {
+    const db = await abrirBase();
+    const fila = await db.getFirstAsync<FilaVisita>(
+      "SELECT contenido FROM visitas_locales WHERE usuario_id = ? AND id = ?",
+      usuarioId,
+      visitaId,
+    );
+    if (!fila) return;
+    const actual = JSON.parse(fila.contenido) as Visita;
+    if (actual.fotoUri !== fotoOriginal) return;
+    await guardarUnaVisita(db, {
+      ...actual,
+      fotoUri: fotoRemota,
+      sincronizada: true,
+    });
+  });
+}
+
+async function incorporarRemotas(
+  usuarioId: string,
+  remotas: VisitaRemota[],
+): Promise<void> {
+  await encolarEscritura(async () => {
+    const db = await abrirBase();
+    await db.withTransactionAsync(async () => {
+      for (const remota of remotas) {
+        if (remota.usuarioId !== usuarioId) continue;
+        const fila = await db.getFirstAsync<FilaVisita>(
+          "SELECT contenido FROM visitas_locales WHERE usuario_id = ? AND id = ?",
+          usuarioId,
+          remota.id,
+        );
+        const local = fila ? (JSON.parse(fila.contenido) as Visita) : null;
+        if (local && !local.sincronizada) continue;
+        await guardarUnaVisita(db, {
+          ...remota,
+          sincronizada: true,
+          fotoLocalUri: local?.fotoLocalUri ?? null,
+        });
+      }
+    });
+  });
 }
 
 export async function registrarVisita(
@@ -67,8 +237,11 @@ export async function registrarVisita(
     nota,
     sincronizada: false,
   };
-  const anteriores = await obtenerVisitas(usuarioId);
-  await guardarVisitas(usuarioId, [visita, ...anteriores]);
+  await migrarSiHaceFalta(usuarioId);
+  await encolarEscritura(async () => {
+    const db = await abrirBase();
+    await guardarUnaVisita(db, visita);
+  });
   return visita;
 }
 
@@ -77,28 +250,33 @@ export async function agregarFotoLocal(
   visitaId: string,
   fotoUri: string,
 ): Promise<void> {
-  const visitas = await obtenerVisitas(usuarioId);
-  if (!visitas.some((visita) => visita.id === visitaId)) {
-    throw new Error("La visita ya no está disponible en esta cuenta.");
-  }
-  await guardarVisitas(
-    usuarioId,
-    visitas.map((visita) =>
-      visita.id === visitaId
-        ? { ...visita, fotoUri, fotoLocalUri: fotoUri, sincronizada: false }
-        : visita,
-    ),
-  );
+  await migrarSiHaceFalta(usuarioId);
+  await encolarEscritura(async () => {
+    const db = await abrirBase();
+    const fila = await db.getFirstAsync<FilaVisita>(
+      "SELECT contenido FROM visitas_locales WHERE usuario_id = ? AND id = ?",
+      usuarioId,
+      visitaId,
+    );
+    if (!fila)
+      throw new Error("La visita ya no está disponible en esta cuenta.");
+    const visita = JSON.parse(fila.contenido) as Visita;
+    await guardarUnaVisita(db, {
+      ...visita,
+      fotoUri,
+      fotoLocalUri: fotoUri,
+      sincronizada: false,
+    });
+  });
 }
 
 async function subirFoto(fotoUri: string, token: string): Promise<string> {
   const base = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, "");
   if (!base) throw new Error("Falta configurar EXPO_PUBLIC_API_URL.");
 
-  // Expo SDK 57 requiere un File real, no un objeto { uri, name, type }.
-  // El archivo ya está guardado en la carpeta privada al tomar la fotografía.
   const archivo = new File(fotoUri);
-  if (!archivo.exists) throw new Error("La fotografía ya no existe en este dispositivo.");
+  if (!archivo.exists)
+    throw new Error("La fotografía ya no existe en este dispositivo.");
   const formulario = new FormData();
   formulario.append("archivo", archivo);
 
@@ -108,21 +286,27 @@ async function subirFoto(fotoUri: string, token: string): Promise<string> {
     body: formulario,
   });
   if (!respuesta.ok) {
-    throw new Error(`La API no pudo recibir la fotografía (${respuesta.status}).`);
+    throw new Error(
+      `La API no pudo recibir la fotografía (${respuesta.status}).`,
+    );
   }
   const datos = (await respuesta.json()) as RespuestaArchivo;
-  if (!datos.datos?.url) throw new Error("La API no devolvió la URL de la foto.");
+  if (!datos.datos?.url)
+    throw new Error("La API no devolvió la URL de la foto.");
   return datos.datos.url;
 }
 
-/** Enviar las visitas locales no sincronizadas; conservar las fallidas en la cola. */
-async function enviarPendientes(usuarioId: string, token: string): Promise<string | null> {
+async function enviarPendientes(
+  usuarioId: string,
+  token: string,
+): Promise<string | null> {
   let primerError: string | null = null;
-  const pendientes = (await obtenerVisitas(usuarioId)).filter((visita) => !visita.sincronizada);
+  const pendientes = (await obtenerVisitas(usuarioId)).filter(
+    (visita) => !visita.sincronizada,
+  );
 
   for (const visita of pendientes) {
     try {
-      // La API admite reintentos con el mismo ID sin duplicar la visita.
       await solicitarApiConSesion<RespuestaUno<VisitaRemota>>(
         "/yo/visitas",
         token,
@@ -150,15 +334,11 @@ async function enviarPendientes(usuarioId: string, token: string): Promise<strin
         fotoRemota = url;
       }
 
-      // Releer para no pisar una foto agregada mientras se enviaba la visita.
-      const actuales = await obtenerVisitas(usuarioId);
-      await guardarVisitas(
+      await marcarComoSincronizada(
         usuarioId,
-        actuales.map((actual) =>
-          actual.id === visita.id && actual.fotoUri === visita.fotoUri
-            ? { ...actual, fotoUri: fotoRemota, sincronizada: true }
-            : actual,
-        ),
+        visita.id,
+        visita.fotoUri,
+        fotoRemota,
       );
     } catch (error) {
       primerError ??= mensajeError(error);
@@ -190,7 +370,6 @@ async function descargarVisitas(token: string): Promise<VisitaRemota[]> {
   return resultado;
 }
 
-/** Sincroniza en dos direcciones: sube pendientes y descarga las visitas de la cuenta. */
 export function sincronizarVisitas(
   usuarioId: string,
   token: string,
@@ -207,20 +386,7 @@ export function sincronizarVisitas(
     let error = await enviarPendientes(usuarioId, token);
     try {
       const remotas = await descargarVisitas(token);
-      const actuales = await obtenerVisitas(usuarioId);
-      const combinado = new Map(actuales.map((visita) => [visita.id, visita]));
-
-      for (const remota of remotas) {
-        if (remota.usuarioId !== usuarioId) continue;
-        const local = combinado.get(remota.id);
-        if (local && !local.sincronizada) continue; // Nunca perder una edición offline.
-        combinado.set(remota.id, {
-          ...remota,
-          sincronizada: true,
-          fotoLocalUri: local?.fotoLocalUri ?? null,
-        });
-      }
-      await guardarVisitas(usuarioId, [...combinado.values()]);
+      await incorporarRemotas(usuarioId, remotas);
     } catch (fallo) {
       error ??= mensajeError(fallo);
     }
@@ -229,7 +395,8 @@ export function sincronizarVisitas(
 
   sincronizaciones.set(usuarioId, tarea);
   const liberar = () => {
-    if (sincronizaciones.get(usuarioId) === tarea) sincronizaciones.delete(usuarioId);
+    if (sincronizaciones.get(usuarioId) === tarea)
+      sincronizaciones.delete(usuarioId);
   };
   void tarea.then(liberar, liberar);
   return tarea;

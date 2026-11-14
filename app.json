@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mi-ciudad",
+    "name": "Mi Colón",
     "slug": "mi-ciudad",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,13 +8,12 @@
     "scheme": "miciudad",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/icon.png"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#185F65",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
@@ -29,32 +28,44 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#F6F8F5",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 240,
+          "dark": {
+            "backgroundColor": "#F6F8F5",
+            "image": "./assets/images/splash-icon.png"
+          }
         }
       ],
       "expo-image",
       [
         "expo-camera",
         {
-          "cameraPermission": "Mi Ciudad utiliza la cámara para leer códigos QR turísticos.",
+          "cameraPermission": "Mi Colón utiliza la cámara para leer códigos QR turísticos.",
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Mi Colón permite elegir fotografías de tu galería para asociarlas a las visitas.",
+          "cameraPermission": "Mi Colón utiliza la cámara para sacar fotografías de tus visitas.",
+          "microphonePermission": false
         }
       ],
       "expo-sqlite",
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Mi Ciudad utiliza tu ubicación para mostrar los lugares turísticos cercanos."
+          "locationWhenInUsePermission": "Mi Colón utiliza tu ubicación para mostrar los lugares turísticos cercanos."
         }
       ],
       "expo-secure-store",
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Mi Ciudad utiliza Face ID/Huella para verificar tu identidad al reingresar."
+          "faceIDPermission": "Mi Colón utiliza Face ID/Huella para verificar tu identidad al reingresar."
         }
       ]
     ],

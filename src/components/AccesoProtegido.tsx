@@ -8,8 +8,6 @@ import {
   View,
 } from "react-native";
 
-// La sesión bloqueada conserva el token en SecureStore, pero oculta los datos
-// personales hasta que el usuario se identifica otra vez.
 export function AccesoProtegido({
   titulo,
   descripcion,

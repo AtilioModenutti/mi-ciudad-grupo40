@@ -106,7 +106,7 @@ export default function AudioguiasScreen() {
       player.replace(uri);
       player.setActiveForLockScreen(true, {
         title: item.tituloLugar,
-        artist: "Mi Ciudad — Colón",
+        artist: "Mi Colón — Colón",
         albumTitle: "Audioguías turísticas",
       });
       setAudioActivo(item);
